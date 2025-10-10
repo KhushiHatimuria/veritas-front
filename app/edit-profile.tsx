@@ -1,4 +1,3 @@
-// app/edit-profile.tsx
 import React, { useState } from "react";
 import {
   View,
@@ -7,109 +6,233 @@ import {
   StyleSheet,
   Image,
   TouchableOpacity,
-  Switch,
   Pressable,
+  Alert,
+  Platform,
+  Animated,
+  Easing,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import  useProfileStore  from "../store/useProfileStore"; // ✅ import store
+import * as ImagePicker from "expo-image-picker";
+import DateTimePicker from "@react-native-community/datetimepicker";
+import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
+import useProfileStore from "../store/useProfileStore";
 
 export default function EditProfilePage() {
-  // ✅ Get values directly from store
-  const { name, email, country, notifications, verified, setProfile } =
-    useProfileStore();
+  const { profile, updateProfile } = useProfileStore();
 
-  // ✅ Local states (pre-filled from store)
-  const [nameState, setNameState] = useState(name);
-  const [emailState, setEmailState] = useState(email);
-  const [countryState, setCountryState] = useState(country);
-  const [notificationsState, setNotificationsState] = useState(notifications);
-  const [verifiedState, setVerifiedState] = useState(verified);
+  const [nameState, setNameState] = useState(profile?.name ?? "");
+  const [emailState, setEmailState] = useState(profile?.email ?? "");
+  const [dobState, setDobState] = useState(profile?.dob ?? "");
+  const [genderState, setGenderState] = useState(profile?.gender ?? "");
+  const [countryState, setCountryState] = useState(profile?.country ?? "");
+  const [avatarState, setAvatarState] = useState(profile?.photo ?? null);
 
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showGenderDropdown, setShowGenderDropdown] = useState(false);
+  const [showCountryDropdown, setShowCountryDropdown] = useState(false);
+
+  // ⚡ Animation for avatar pulse
+  const avatarScale = new Animated.Value(1);
+  const pulse = () => {
+    Animated.sequence([
+      Animated.timing(avatarScale, {
+        toValue: 1.1,
+        duration: 150,
+        useNativeDriver: true,
+        easing: Easing.ease,
+      }),
+      Animated.timing(avatarScale, {
+        toValue: 1,
+        duration: 150,
+        useNativeDriver: true,
+        easing: Easing.ease,
+      }),
+    ]).start();
+  };
+
+  // 📸 Pick Image
+  const pickImage = async () => {
+    pulse();
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.7,
+    });
+    if (!result.canceled) {
+      setAvatarState(result.assets[0].uri);
+    }
+  };
+
+  // 📅 Handle Date change
+  const handleDateChange = (event: any, selectedDate?: Date) => {
+    setShowDatePicker(false);
+    if (selectedDate) {
+      const dateStr = selectedDate.toISOString().split("T")[0];
+      setDobState(dateStr);
+    }
+  };
+
+  // 💾 Save changes
   const handleSave = () => {
-    // ✅ Update global store with new values
-    setProfile({
+    updateProfile({
       name: nameState,
       email: emailState,
+      dob: dobState,
+      gender: genderState,
       country: countryState,
-      notifications: notificationsState,
-      verified: verifiedState,
+      photo: avatarState,
     });
-
-    router.back(); // Go back to user page after saving
+    Alert.alert("✅ Success", "Profile updated successfully!");
+    router.back();
   };
 
   return (
     <View style={styles.container}>
-      {/* Avatar */}
-      <View style={styles.avatarContainer}>
-        <Image
+      {/* Avatar Picker */}
+      <TouchableOpacity onPress={pickImage} style={styles.avatarContainer}>
+        <Animated.Image
           source={{
-            uri: "https://cdn-icons-png.flaticon.com/512/3135/3135715.png",
+            uri:
+              avatarState ||
+              "https://cdn-icons-png.flaticon.com/512/3135/3135715.png",
           }}
-          style={styles.avatar}
+          style={[styles.avatar, { transform: [{ scale: avatarScale }] }]}
         />
-        <TouchableOpacity style={styles.cameraIcon}>
-          <Ionicons name="camera" size={18} color="black" />
-        </TouchableOpacity>
-      </View>
+        <Text style={styles.changeText}>Change Photo</Text>
+      </TouchableOpacity>
 
-      {/* Name */}
-      <Text style={styles.label}>Name</Text>
+      {/* Name Input */}
       <View style={styles.inputRow}>
+        <Ionicons name="person" size={20} color="#a78bfa" style={styles.icon} />
         <TextInput
           style={styles.input}
+          placeholder="Name"
+          placeholderTextColor="#9ca3af"
           value={nameState}
           onChangeText={setNameState}
         />
-        <Ionicons name="pencil" size={18} color="gray" />
       </View>
 
-      {/* Email */}
-      <Text style={styles.label}>Email</Text>
+      {/* Email Input */}
       <View style={styles.inputRow}>
+        <Ionicons name="mail" size={20} color="#a78bfa" style={styles.icon} />
         <TextInput
           style={styles.input}
+          placeholder="Email"
+          placeholderTextColor="#9ca3af"
           value={emailState}
           onChangeText={setEmailState}
         />
-        <Ionicons name="pencil" size={18} color="gray" />
       </View>
 
-      {/* Country */}
-      <Text style={styles.label}>Country</Text>
+      {/* DOB */}
       <View style={styles.inputRow}>
+        <Ionicons name="calendar" size={20} color="#a78bfa" style={styles.icon} />
         <TextInput
           style={styles.input}
+          placeholder="Date of Birth"
+          placeholderTextColor="#9ca3af"
+          value={dobState}
+          editable={false}
+        />
+        <Pressable onPress={() => setShowDatePicker(true)}>
+          <Ionicons name="chevron-down" size={20} color="#a78bfa" />
+        </Pressable>
+      </View>
+
+      {showDatePicker && (
+        <DateTimePicker
+          value={dobState ? new Date(dobState) : new Date()}
+          mode="date"
+          display={Platform.OS === "ios" ? "spinner" : "default"}
+          onChange={handleDateChange}
+        />
+      )}
+
+      {/* Gender */}
+      <View style={styles.inputRow}>
+        <Ionicons name="male-female" size={20} color="#a78bfa" style={styles.icon} />
+        <TextInput
+          style={styles.input}
+          placeholder="Gender"
+          placeholderTextColor="#9ca3af"
+          value={genderState}
+          editable={false}
+        />
+        <Pressable onPress={() => setShowGenderDropdown(!showGenderDropdown)}>
+          <Ionicons
+            name={showGenderDropdown ? "chevron-up" : "chevron-down"}
+            size={20}
+            color="#a78bfa"
+          />
+        </Pressable>
+      </View>
+
+      {showGenderDropdown && (
+        <View style={styles.dropdown}>
+          {["Male", "Female", "Other"].map((item) => (
+            <Pressable
+              key={item}
+              onPress={() => {
+                setGenderState(item);
+                setShowGenderDropdown(false);
+              }}
+            >
+              <Text style={styles.dropdownItem}>{item}</Text>
+            </Pressable>
+          ))}
+        </View>
+      )}
+
+      {/* Country */}
+      <View style={styles.inputRow}>
+        <Ionicons name="earth" size={20} color="#a78bfa" style={styles.icon} />
+        <TextInput
+          style={styles.input}
+          placeholder="Country"
+          placeholderTextColor="#9ca3af"
           value={countryState}
-          onChangeText={setCountryState}
+          editable={false}
         />
-        <Ionicons name="chevron-down" size={18} color="gray" />
+        <Pressable onPress={() => setShowCountryDropdown(!showCountryDropdown)}>
+          <Ionicons
+            name={showCountryDropdown ? "chevron-up" : "chevron-down"}
+            size={20}
+            color="#a78bfa"
+          />
+        </Pressable>
       </View>
 
-      {/* Notification Settings */}
-      <View style={styles.switchRow}>
-        <Text style={styles.label}>Notification Settings</Text>
-        <Switch
-          value={notificationsState}
-          onValueChange={setNotificationsState}
-        />
-      </View>
+      {showCountryDropdown && (
+        <View style={styles.dropdown}>
+          {["India", "USA", "UK", "Canada", "Australia"].map((item) => (
+            <Pressable
+              key={item}
+              onPress={() => {
+                setCountryState(item);
+                setShowCountryDropdown(false);
+              }}
+            >
+              <Text style={styles.dropdownItem}>{item}</Text>
+            </Pressable>
+          ))}
+        </View>
+      )}
 
-      {/* Verified User */}
-      <View style={styles.switchRow}>
-        <Text style={styles.label}>Verified User</Text>
-        <Switch value={verifiedState} onValueChange={setVerifiedState} />
-      </View>
-
-      {/* Buttons */}
-      <Pressable style={styles.saveBtn} onPress={handleSave}>
-        <Text style={styles.saveText}>Save Changes</Text>
-      </Pressable>
-
-      <Pressable onPress={() => router.back()}>
-        <Text style={styles.cancelText}>Cancel</Text>
-      </Pressable>
+      {/* Save Button with glow animation */}
+      <TouchableOpacity activeOpacity={0.9} onPress={handleSave}>
+        <LinearGradient
+          colors={["#7e22ce", "#9333ea", "#a855f7"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.saveBtn}
+        >
+          <Text style={styles.saveText}>Save</Text>
+        </LinearGradient>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -117,69 +240,56 @@ export default function EditProfilePage() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "white",
+    backgroundColor: "#0f0f17",
     padding: 20,
   },
-  avatarContainer: {
-    alignItems: "center",
-    marginBottom: 20,
-  },
+  avatarContainer: { alignItems: "center", marginBottom: 24 },
   avatar: {
-    width: 90,
-    height: 90,
-    borderRadius: 50,
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    borderWidth: 2,
+    borderColor: "#a78bfa",
+    marginBottom: 8,
   },
-  cameraIcon: {
-    position: "absolute",
-    bottom: 0,
-    right: 120,
-    backgroundColor: "white",
-    borderRadius: 20,
-    padding: 6,
-    elevation: 3,
-  },
-  label: {
-    fontWeight: "600",
-    fontSize: 14,
-    marginTop: 10,
-    marginBottom: 6,
-  },
+  changeText: { color: "#a78bfa", fontWeight: "600" },
+
   inputRow: {
     flexDirection: "row",
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
+    backgroundColor: "#1e1e2e",
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    marginBottom: 10,
-    justifyContent: "space-between",
+    marginBottom: 12,
   },
+  icon: { marginRight: 10 },
   input: {
     flex: 1,
-    marginRight: 8,
+    fontSize: 15,
+    color: "#f1f5f9",
   },
-  switchRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginVertical: 10,
-  },
-  saveBtn: {
-    backgroundColor: "#2563eb",
-    paddingVertical: 14,
+  dropdown: {
+    backgroundColor: "#1e1e2e",
     borderRadius: 10,
-    marginTop: 20,
-    alignItems: "center",
+    marginBottom: 12,
   },
-  saveText: {
-    color: "white",
-    fontWeight: "700",
-  },
-  cancelText: {
-    color: "#6b7280",
-    textAlign: "center",
-    marginTop: 16,
+  dropdownItem: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    color: "#e2e8f0",
     fontSize: 15,
   },
+  saveBtn: {
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: "center",
+    shadowColor: "#a855f7",
+    shadowOpacity: 0.5,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 8,
+    marginTop: 20,
+  },
+  saveText: { color: "white", fontWeight: "700", fontSize: 16 },
 });

@@ -1,54 +1,150 @@
-import { View, Text, Pressable, StyleSheet } from "react-native";
-import { useState } from "react";
+import { View, Text, Pressable, StyleSheet, ImageBackground, Animated } from "react-native";
+import { useEffect, useRef, useState } from "react";
 import { router } from "expo-router";
+import { LinearGradient } from "expo-linear-gradient";
 
 export default function Language() {
   const languages = ["English", "French", "German", "Spanish", "Chinese", "Hindi"];
   const [selected, setSelected] = useState<string | null>(null);
 
+  // Flicker animation
+  const flickerAnim = useRef(new Animated.Value(0)).current;
+  const [shuffleDone, setShuffleDone] = useState(false);
+
+  // Start flicker loop only until shuffle completes
+  useEffect(() => {
+    if (!shuffleDone) {
+      const loop = Animated.loop(
+        Animated.sequence([
+          Animated.timing(flickerAnim, {
+            toValue: 1,
+            duration: 300,
+            useNativeDriver: false,
+          }),
+          Animated.timing(flickerAnim, {
+            toValue: 0,
+            duration: 200,
+            useNativeDriver: false,
+          }),
+        ])
+      );
+      loop.start();
+      return () => loop.stop();
+    }
+  }, [flickerAnim, shuffleDone]);
+
+  // Flicker color (active only during shuffle)
+  const flickerColor = flickerAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["#ffffff", "#00eaff"], // flicker white ↔ neon blue
+  });
+
+  // Shuffle text effect
+  const originalTitle = "What language would you like to choose?";
+  const [shuffledTitle, setShuffledTitle] = useState(originalTitle);
+
+  useEffect(() => {
+    let iteration = 0;
+    const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+
+    const interval = setInterval(() => {
+      setShuffledTitle(
+        originalTitle
+          .split("")
+          .map((char, idx) => {
+            if (idx < iteration) return originalTitle[idx];
+            return letters[Math.floor(Math.random() * letters.length)];
+          })
+          .join("")
+      );
+
+      iteration += 1 / 3; // controls how fast letters settle
+      if (iteration >= originalTitle.length) {
+        clearInterval(interval);
+        setShuffledTitle(originalTitle); // final resolved text
+        setShuffleDone(true); // stop flicker after shuffle
+      }
+    }, 50);
+
+    return () => clearInterval(interval);
+  }, []);
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>What language would you like to choose?</Text>
-      {languages.map((lang, i) => (
-        <Pressable
-          key={i}
-          style={styles.option}
-          onPress={() => {
-            setSelected(lang);
-            router.push("/onboarding/signin");
-          }}
+    <ImageBackground
+      source={require("../../assets/background3.jpg")}
+      style={styles.background}
+      resizeMode="cover"
+    >
+      <View style={styles.overlay}>
+        {/* Flicker only until shuffle finishes, then solid neon blue */}
+        <Animated.Text
+          style={[
+            styles.title,
+            { color: shuffleDone ? "#00eaff" : flickerColor },
+          ]}
         >
-          {/* Circle for selection */}
-          <View style={[styles.circle, selected === lang && styles.circleSelected]} />
-          <Text style={styles.btnText}>{lang}</Text>
-        </Pressable>
-      ))}
-    </View>
+          {shuffledTitle}
+        </Animated.Text>
+
+        {languages.map((lang, i) => (
+          <Pressable
+            key={i}
+            style={styles.optionWrapper}
+            onPress={() => {
+              setSelected(lang);
+              router.push("/onboarding/signin");
+            }}
+          >
+            <LinearGradient
+              colors={["#005bea", "#00c6fb"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.option}
+            >
+              <View
+                style={[styles.circle, selected === lang && styles.circleSelected]}
+              />
+              <Text style={styles.btnText}>{lang}</Text>
+            </LinearGradient>
+          </Pressable>
+        ))}
+      </View>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
-    backgroundColor: "#001f3f", 
-    justifyContent: "center", 
-    alignItems: "center", 
-    padding: 20 
+  background: {
+    flex: 1,
+    width: "100%",
+    height: "100%",
   },
-  title: { 
-    color: "white", 
-    fontSize: 20, 
-    marginBottom: 20, 
-    textAlign: "center" 
+  overlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.65)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  title: {
+    fontSize: 20,
+    marginBottom: 20,
+    textAlign: "center",
+    fontWeight: "bold",
+    letterSpacing: 1,
+  },
+  optionWrapper: {
+    width: "80%",
+    marginVertical: 8,
+    borderRadius: 10,
+    overflow: "hidden",
   },
   option: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#0074D9",
-    padding: 12,
-    marginVertical: 8,
-    borderRadius: 8,
-    width: "80%",
+    padding: 14,
+    borderRadius: 10,
+    width: "100%",
   },
   circle: {
     width: 20,
@@ -62,8 +158,9 @@ const styles = StyleSheet.create({
   circleSelected: {
     backgroundColor: "white",
   },
-  btnText: { 
-    color: "white", 
-    fontSize: 16, 
+  btnText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "600",
   },
 });

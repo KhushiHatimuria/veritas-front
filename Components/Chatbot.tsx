@@ -15,7 +15,7 @@ type Msg = { id: string; role: "user" | "bot"; text: string };
 export default function Chatbot() {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Msg[]>([
-    { id: "0", role: "bot", text: "👋 Hi! I’m Veritas. How can I help you?" },
+    { id: "0", role: "bot", text: "👋 Hi! I’m Verta. How can I help you?" },
   ]);
   const [input, setInput] = useState("");
   const listRef = useRef<FlatList<Msg>>(null);
@@ -60,7 +60,9 @@ export default function Chatbot() {
                   ]}
                 >
                   <Text
-                    style={item.role === "user" ? styles.userText : styles.botText}
+                    style={
+                      item.role === "user" ? styles.userText : styles.botText
+                    }
                   >
                     {item.text}
                   </Text>
@@ -93,10 +95,15 @@ export default function Chatbot() {
 }
 
 const styles = StyleSheet.create({
-  wrapper: { position: "absolute", bottom: 90, right: 20 },
+  wrapper: {
+    position: "absolute",
+    bottom: 90,
+    right: 20,
+    flex: 1,
+  },
   box: {
-    width: 300,
-    height: 400,
+    width: 320,
+    height: 420,
     backgroundColor: "#fff",
     borderRadius: 20,
     padding: 10,
@@ -105,15 +112,21 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 6 },
+    flexDirection: "column",
   },
   header: { fontWeight: "700", textAlign: "center", marginBottom: 6 },
-  list: { paddingVertical: 8 },
+  list: { flexGrow: 1, paddingVertical: 8 },
   msg: { maxWidth: "80%", padding: 8, borderRadius: 12, marginVertical: 3 },
   user: { alignSelf: "flex-end", backgroundColor: "#007AFF" },
   bot: { alignSelf: "flex-start", backgroundColor: "#e0e0e0" },
   userText: { color: "#fff" },
   botText: { color: "#000" },
-  inputRow: { flexDirection: "row", gap: 8, marginTop: "auto" },
+  inputRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginTop: "auto",
+  },
   input: {
     flex: 1,
     borderWidth: 1,

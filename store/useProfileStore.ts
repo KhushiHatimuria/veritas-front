@@ -1,30 +1,55 @@
-// store/useProfileStore.ts
 import { create } from "zustand";
 
-type ProfileState = {
+interface Profile {
   name: string;
   email: string;
-  gender: string;
   dob: string;
+  gender: string;
   country: string;
-  notifications: boolean;
-  verified: boolean;
-  setProfile: (profile: Partial<ProfileState>) => void;
-};
+  photo: string | null; // ✅ renamed from profileImage → photo
+}
 
-const useProfileStore = create<ProfileState>((set) => ({
-  name: "",
-  email: "",
-  gender: "",
-  dob: "",
-  country: "",
-  notifications: true,
-  verified: false,
-  setProfile: (profile) =>
+interface ProfileStore {
+  profile: Profile;
+  setProfile: (data: Partial<Profile>) => void;
+  updateProfile: (data: Partial<Profile>) => void;
+  clearProfile: () => void;
+}
+
+const useProfileStore = create<ProfileStore>((set) => ({
+  profile: {
+    name: "",
+    email: "",
+    dob: "",
+    gender: "",
+    country: "",
+    photo: null,
+  },
+
+  // ✅ Used in Profile1.tsx (initial setup)
+  setProfile: (data) =>
     set((state) => ({
-      ...state,
-      ...profile,
+      profile: { ...state.profile, ...data },
     })),
+
+  // ✅ Used in EditProfilePage.tsx (edit existing)
+  updateProfile: (data) =>
+    set((state) => ({
+      profile: { ...state.profile, ...data },
+    })),
+
+  // ✅ Optional — to clear everything
+  clearProfile: () =>
+    set({
+      profile: {
+        name: "",
+        email: "",
+        dob: "",
+        gender: "",
+        country: "",
+        photo: null,
+      },
+    }),
 }));
 
 export default useProfileStore;

@@ -1,4 +1,4 @@
-import { View, Text, Pressable, StyleSheet } from "react-native";
+import { View, Text, Pressable, StyleSheet, ImageBackground } from "react-native";
 import { useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
@@ -41,64 +41,79 @@ export default function Permission2() {
   const isAllSelected = selectedPermissions.length === permissionOptions.length;
 
   return (
-    <View style={styles.container}>
-      {/* Privacy Section */}
-      <Text style={styles.sectionTitle}>Privacy</Text>
-      {privacyOptions.map((p, i) => (
-        <Pressable
-          key={i}
-          style={styles.optionRow}
-          onPress={() => toggleOption(p, "privacy")}
-        >
+    <ImageBackground
+      source={require("../../assets/background3.jpg")} // ✅ add your background3.jpg
+      style={styles.background}
+      resizeMode="cover"
+    >
+      <View style={styles.overlay}>
+        {/* Privacy Section */}
+        <Text style={styles.sectionTitle}>Privacy</Text>
+        {privacyOptions.map((p, i) => (
+          <Pressable
+            key={i}
+            style={styles.optionRow}
+            onPress={() => toggleOption(p, "privacy")}
+          >
+            <Ionicons
+              name={selectedPrivacy.includes(p) ? "checkbox" : "square-outline"}
+              size={22}
+              color="white"
+              style={{ marginRight: 10 }}
+            />
+            <Text style={styles.optionText}>{p}</Text>
+          </Pressable>
+        ))}
+
+        {/* Permissions Section */}
+        <Text style={[styles.sectionTitle, { marginTop: 25 }]}>Permissions</Text>
+        {permissionOptions.map((p, i) => (
+          <Pressable
+            key={i}
+            style={styles.optionRow}
+            onPress={() => toggleOption(p, "permission")}
+          >
+            <Ionicons
+              name={selectedPermissions.includes(p) ? "checkbox" : "square-outline"}
+              size={22}
+              color="white"
+              style={{ marginRight: 10 }}
+            />
+            <Text style={styles.optionText}>{p}</Text>
+          </Pressable>
+        ))}
+
+        {/* Allow All Option */}
+        <Pressable style={styles.optionRow} onPress={toggleAllowAll}>
           <Ionicons
-            name={selectedPrivacy.includes(p) ? "checkbox" : "square-outline"}
+            name={isAllSelected ? "checkbox" : "square-outline"}
             size={22}
             color="white"
             style={{ marginRight: 10 }}
           />
-          <Text style={styles.optionText}>{p}</Text>
+          <Text style={[styles.optionText, { fontWeight: "600" }]}>Allow All</Text>
         </Pressable>
-      ))}
 
-      {/* Permissions Section */}
-      <Text style={[styles.sectionTitle, { marginTop: 25 }]}>Permissions</Text>
-      {permissionOptions.map((p, i) => (
-        <Pressable
-          key={i}
-          style={styles.optionRow}
-          onPress={() => toggleOption(p, "permission")}
-        >
-          <Ionicons
-            name={selectedPermissions.includes(p) ? "checkbox" : "square-outline"}
-            size={22}
-            color="white"
-            style={{ marginRight: 10 }}
-          />
-          <Text style={styles.optionText}>{p}</Text>
+        {/* Save Button */}
+        <Pressable style={styles.btn} onPress={() => router.push("/home")}>
+          <Text style={styles.btnText}>Save & Continue</Text>
         </Pressable>
-      ))}
-
-      {/* Allow All Option */}
-      <Pressable style={styles.optionRow} onPress={toggleAllowAll}>
-        <Ionicons
-          name={isAllSelected ? "checkbox" : "square-outline"}
-          size={22}
-          color="white"
-          style={{ marginRight: 10 }}
-        />
-        <Text style={[styles.optionText, { fontWeight: "600" }]}>Allow All</Text>
-      </Pressable>
-
-      {/* Save Button */}
-      <Pressable style={styles.btn} onPress={() => router.push("/home")}>
-        <Text style={styles.btnText}>Save & Continue</Text>
-      </Pressable>
-    </View>
+      </View>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#001f3f", padding: 20 },
+  background: {
+    flex: 1,
+    width: "100%",
+    height: "100%",
+  },
+  overlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.6)", // ✅ dark overlay for readability
+    padding: 20,
+  },
   sectionTitle: {
     color: "#39CCCC",
     fontSize: 18,
@@ -112,10 +127,15 @@ const styles = StyleSheet.create({
   },
   optionText: { color: "white", fontSize: 16 },
   btn: {
-    backgroundColor: "#39cccc",
+    backgroundColor: "#0074D9",
     padding: 14,
     borderRadius: 10,
     marginTop: 30,
   },
-  btnText: { color: "white", textAlign: "center", fontSize: 16, fontWeight: "600" },
+  btnText: {
+    color: "white",
+    textAlign: "center",
+    fontSize: 16,
+    fontWeight: "600",
+  },
 });

@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   TextInput,
   FlatList,
+  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
@@ -24,19 +25,40 @@ export default function SavedPage() {
     { id: "3", title: "Viral tweet verification", subtitle: "Aug 25" },
   ]);
 
+  // Filter items
   const filteredItems = savedItems.filter(
     (item) =>
       item.title.toLowerCase().includes(search.toLowerCase()) ||
       item.subtitle.toLowerCase().includes(search.toLowerCase())
   );
 
+  // Handle deleting item
+  const handleDelete = (id: string) => {
+    Alert.alert("Remove Item", "Do you want to remove this saved item?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: () => setSavedItems((prev) => prev.filter((i) => i.id !== id)),
+      },
+    ]);
+  };
+
+  // Render each card
   const renderItem = ({ item }: { item: SavedItem }) => (
-    <TouchableOpacity style={styles.item}>
-      <View style={styles.iconPlaceholder} />
+    <TouchableOpacity
+      style={styles.item}
+      onPress={() => router.push(`/details/${item.id}`)} // navigate to details page
+      onLongPress={() => handleDelete(item.id)} // hold to delete
+    >
+      <View style={styles.iconContainer}>
+        <Ionicons name="bookmark" size={22} color="#3578e5" />
+      </View>
       <View style={{ flex: 1 }}>
         <Text style={styles.title}>{item.title}</Text>
         <Text style={styles.subtitle}>{item.subtitle}</Text>
       </View>
+      <Ionicons name="chevron-forward" size={20} color="#aaa" />
     </TouchableOpacity>
   );
 
@@ -48,16 +70,19 @@ export default function SavedPage() {
           <Ionicons name="arrow-back" size={24} color="#111" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Saved</Text>
-        <View style={{ width: 24 }} />
+        <Ionicons name="bookmark" size={22} color="#3578e5" />
       </View>
 
       {/* Search bar */}
-      <TextInput
-        style={styles.searchBar}
-        placeholder="Search"
-        value={search}
-        onChangeText={setSearch}
-      />
+      <View style={styles.searchWrapper}>
+        <Ionicons name="search" size={18} color="#666" style={{ marginLeft: 8 }} />
+        <TextInput
+          style={styles.searchBar}
+          placeholder="Search saved items"
+          value={search}
+          onChangeText={setSearch}
+        />
+      </View>
 
       {/* Saved Items List */}
       <FlatList
@@ -65,15 +90,24 @@ export default function SavedPage() {
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
         ListEmptyComponent={
-          <Text style={styles.emptyText}>No saved items found.</Text>
+          <View style={styles.emptyContainer}>
+            <Ionicons name="bookmark-outline" size={60} color="#bbb" />
+            <Text style={styles.emptyText}>No saved items yet.</Text>
+            <Text style={styles.emptySubText}>Your saved articles will appear here.</Text>
+          </View>
         }
-        contentContainerStyle={{ paddingBottom: 80 }}
+        contentContainerStyle={{ paddingBottom: 100 }}
       />
 
       {/* View All Button */}
-      <TouchableOpacity style={styles.viewAllBtn}>
-        <Text style={styles.viewAllText}>View All</Text>
-      </TouchableOpacity>
+      {savedItems.length > 0 && (
+        <TouchableOpacity
+          style={styles.viewAllBtn}
+          onPress={() => router.push("/saved/all")}
+        >
+          <Text style={styles.viewAllText}>View All</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
@@ -89,56 +123,83 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 16,
+    marginBottom: 20,
   },
   headerTitle: {
     fontSize: 20,
-    fontWeight: "600",
+    fontWeight: "700",
+    color: "#111",
+  },
+  searchWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f0f2f7",
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+    marginBottom: 16,
   },
   searchBar: {
-    backgroundColor: "#f0f2f7",
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 16,
+    flex: 1,
     fontSize: 14,
+    marginLeft: 6,
   },
   item: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#f9f9f9",
+    backgroundColor: "#fff",
     padding: 14,
-    borderRadius: 10,
+    borderRadius: 12,
     marginBottom: 12,
+    elevation: 2, // shadow for Android
+    shadowColor: "#000", // shadow for iOS
+    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
   },
-  iconPlaceholder: {
+  iconContainer: {
     width: 40,
     height: 40,
     borderRadius: 8,
-    backgroundColor: "#ddd",
+    backgroundColor: "#e9f0ff",
+    justifyContent: "center",
+    alignItems: "center",
     marginRight: 12,
   },
   title: {
     fontSize: 15,
-    fontWeight: "500",
+    fontWeight: "600",
     color: "#222",
   },
   subtitle: {
     fontSize: 13,
     color: "#666",
+    marginTop: 2,
+  },
+  emptyContainer: {
+    alignItems: "center",
+    marginTop: 80,
   },
   emptyText: {
-    textAlign: "center",
-    marginTop: 50,
+    fontSize: 16,
+    fontWeight: "500",
+    color: "#777",
+    marginTop: 12,
+  },
+  emptySubText: {
+    fontSize: 13,
     color: "#999",
+    marginTop: 4,
   },
   viewAllBtn: {
     backgroundColor: "#3578e5",
-    padding: 14,
-    borderRadius: 10,
+    padding: 16,
+    borderRadius: 12,
     position: "absolute",
     bottom: 20,
     left: 16,
     right: 16,
+    elevation: 3,
   },
   viewAllText: {
     textAlign: "center",

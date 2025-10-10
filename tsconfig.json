@@ -1,19 +1,13 @@
 {
+  "extends": "expo/tsconfig.base",
   "compilerOptions": {
-    "target": "esnext",              // ✅ make sure this is es2016 or newer
-    "lib": ["es2016", "dom"],        // ✅ add this line
-    "jsx": "react-jsx",
-    "moduleResolution": "node",
-    "strict": true,
+    "moduleResolution": "bundler",
+    "customConditions": ["react"],
+    "jsx": "react-native",
     "allowJs": true,
     "noEmit": true,
     "isolatedModules": true,
-    "resolveJsonModule": true,
+    "strict": true,
     "types": ["expo-router", "react", "react-native"]
-  },
-  "extends": "expo/tsconfig.base"
+  }
 }
-
-
-
-

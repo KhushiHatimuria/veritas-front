@@ -1,205 +1,253 @@
-import React from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  Image,
-} from "react-native";
+import React, { useState, useEffect } from "react";
+import { View, Text, FlatList, StyleSheet, Image } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import useProfileStore from "../store/useProfileStore"; // ✅ Import the global store
 
 type LeaderboardItem = {
   id: string;
-  rank: number;
   name: string;
   points: number;
 };
 
-export default function RewardsPage() {
-  const balance = 300;
+type Badge = {
+  id: string;
+  icon: keyof typeof Ionicons.glyphMap;
+};
 
-  const badges = [
-    { id: "1", icon: "ribbon-outline" },
-    { id: "2", icon: "ribbon-outline" },
-    { id: "3", icon: "ribbon-outline" },
-  ];
+const RewardsPage: React.FC = () => {
+  // ✅ Access global profile data from Zustand store
+  const { profile } = useProfileStore();
+  const { name, photo } = profile;
 
-  const leaderboard: LeaderboardItem[] = [
-    { id: "1", rank: 1, name: "Alice", points: 2000 },
-    { id: "2", rank: 2, name: "Bob", points: 1500 },
-    { id: "3", rank: 3, name: "Charlie", points: 1400 },
-  ];
+  const [balance, setBalance] = useState<number>(0);
+  const [badges, setBadges] = useState<Badge[]>([]);
+  const [leaderboard, setLeaderboard] = useState<LeaderboardItem[]>([]);
 
-  const yourRank = { rank: 94, points: 125 };
+  useEffect(() => {
+    // ✅ Example mock data — replace with API later if needed
+    setBalance(2600);
+    setBadges([
+      { id: "1", icon: "medal" },
+      { id: "2", icon: "ribbon" },
+      { id: "3", icon: "trophy" },
+      { id: "4", icon: "star" },
+    ]);
+    setLeaderboard([
+      { id: "1", name: "Alice", points: 2000 },
+      { id: "2", name: "Bob", points: 1800 },
+      { id: "3", name: "Charlie", points: 1600 },
+      { id: "4", name: name || "You", points: 1200 },
+    ]);
+  }, [name]);
 
-  const renderLeaderboard = ({ item }: { item: LeaderboardItem }) => (
+  // ✅ Renders leaderboard rows
+  const renderLeaderboard = ({
+    item,
+    index,
+  }: {
+    item: LeaderboardItem;
+    index: number;
+  }) => (
     <View
       style={[
-        styles.row,
-        item.rank === 1
-          ? styles.firstPlace
-          : item.rank === 2
-          ? styles.secondPlace
-          : item.rank === 3
-          ? styles.thirdPlace
-          : styles.otherPlaces,
+        styles.leaderboardRow,
+        item.name === (name || "You") && styles.youRow,
       ]}
     >
-      <Text style={styles.rank}>{item.rank}</Text>
-      <Text style={styles.name}>{item.name}</Text>
-      <Text style={styles.points}>{item.points} pts</Text>
+      <Text
+        style={[
+          styles.rankText,
+          item.name === (name || "You") && styles.youRankText,
+        ]}
+      >
+        #{index + 1}
+      </Text>
+      <Text
+        style={[styles.name, item.name === (name || "You") && styles.youName]}
+      >
+        {item.name}
+      </Text>
+      <Text
+        style={[
+          styles.points,
+          item.name === (name || "You") && styles.youPoints,
+        ]}
+      >
+        {item.points} pts
+      </Text>
     </View>
   );
 
   return (
     <View style={styles.container}>
-      {/* Coins */}
-      <Text style={styles.sectionTitle}>Coins</Text>
-      <View style={styles.balanceContainer}>
-        {/* Circle placeholder for coin image */}
-        <View style={styles.coinPlaceholder}>
-          {/* Replace with Image later */}
-          {/* Example: <Image source={require("../assets/coin.png")} style={styles.coinImage}/> */}
-          <Ionicons name="logo-bitcoin" size={28} color="#007BFF" />
+      {/* ✅ Profile Header */}
+      <View style={styles.profileHeader}>
+        <View style={styles.avatar}>
+          {photo ? (
+            <Image
+              source={{ uri: photo }}
+              style={{ width: 70, height: 70, borderRadius: 35 }}
+            />
+          ) : (
+            <Ionicons name="person-circle" size={70} color="#007BFF" />
+          )}
         </View>
-        <Text style={styles.balance}>{balance}</Text>
+
+        <Text style={styles.username}>{name || "Mr. Explore"}</Text>
+        <Text style={styles.level}>LEVEL 12</Text>
+
+        <View style={styles.statsRow}>
+          <View style={styles.statBox}>
+            <Text style={styles.statValue}>15</Text>
+            <Text style={styles.statLabel}>Streak Days</Text>
+          </View>
+          <View style={styles.statBox}>
+            <Text style={styles.statValue}>Gold</Text>
+            <Text style={styles.statLabel}>Current League</Text>
+          </View>
+          <View style={styles.statBox}>
+            <Text style={styles.statValue}>{balance / 1000}K</Text>
+            <Text style={styles.statLabel}>Total Coins</Text>
+          </View>
+        </View>
       </View>
 
-      {/* Badges */}
+      {/* ✅ Badges Section */}
       <Text style={styles.sectionTitle}>Badges</Text>
       <View style={styles.badgesRow}>
         {badges.map((badge) => (
           <View key={badge.id} style={styles.badge}>
-            <Ionicons name={badge.icon as any} size={28} color="#007BFF" />
+            <Ionicons name={badge.icon} size={30} color="#007BFF" />
           </View>
         ))}
       </View>
 
-      {/* Leaderboard */}
+      {/* ✅ Leaderboard Section */}
       <Text style={styles.sectionTitle}>Leaderboard</Text>
-      <View style={styles.table}>
-        <FlatList
-          data={leaderboard}
-          renderItem={renderLeaderboard}
-          keyExtractor={(item) => item.id}
-        />
-        <View style={[styles.row, styles.youRow]}>
-          <Text style={styles.rank}>You:</Text>
-          <Text style={styles.name}>#{yourRank.rank}</Text>
-          <Text style={styles.points}>{yourRank.points} pts</Text>
-        </View>
-      </View>
+      <FlatList
+        data={leaderboard}
+        renderItem={renderLeaderboard}
+        keyExtractor={(item) => item.id}
+        scrollEnabled={false}
+        style={styles.leaderboardList}
+      />
     </View>
   );
-}
+};
+
+export default RewardsPage;
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
-    paddingHorizontal: 16,
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 20,
     paddingTop: 50,
   },
-  balanceContainer: {
-    flexDirection: "row",
+  profileHeader: {
     alignItems: "center",
-    marginBottom: 20,
-    marginLeft: 10,
+    marginBottom: 30,
   },
-  coinPlaceholder: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: "#E6F0FF",
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 12,
-    borderWidth: 1,
-    borderColor: "#02080eff",
+  avatar: {
+    marginBottom: 10,
   },
-  coinImage: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-  },
-  balance: {
-    fontSize: 28,
+  username: {
+    color: "#000",
+    fontSize: 20,
     fontWeight: "700",
-    marginLeft: 5,
-    color: "black",
+  },
+  level: {
+    color: "#007BFF",
+    fontSize: 14,
+    marginBottom: 10,
+  },
+  statsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    width: "100%",
+    marginTop: 10,
+  },
+  statBox: {
+    backgroundColor: "#F2F4F8",
+    borderRadius: 10,
+    padding: 10,
+    alignItems: "center",
+    flex: 1,
+    marginHorizontal: 5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+  },
+  statValue: {
+    color: "#007BFF",
+    fontSize: 18,
+    fontWeight: "700",
+  },
+  statLabel: {
+    color: "#555",
+    fontSize: 12,
   },
   sectionTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    marginBottom: 8,
-    marginTop: 12,
-    color: "#003366",
+    color: "#000",
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 10,
   },
   badgesRow: {
     flexDirection: "row",
-    justifyContent: "flex-start",
-    marginBottom: 20,
-    gap: 20,
+    justifyContent: "center",
+    marginBottom: 25,
   },
   badge: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    borderWidth: 1,
-    borderColor: "#007BFF",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#E6F0FF",
+    backgroundColor: "#F2F4F8",
+    padding: 12,
+    borderRadius: 50,
+    marginHorizontal: 6,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
   },
-  table: {
-    borderWidth: 1,
-    borderColor: "#007BFF",
-    borderRadius: 8,
-    padding: 8,
-    backgroundColor: "#F8FBFF",
+  leaderboardList: {
+    backgroundColor: "#F2F4F8",
+    borderRadius: 12,
+    padding: 10,
   },
-  row: {
+  leaderboardRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingVertical: 8,
-    paddingHorizontal: 6,
+    alignItems: "center",
+    paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: "#E6F0FF",
-    borderRadius: 6,
+    borderBottomColor: "#E0E0E0",
   },
-  rank: {
-    width: 40,
-    fontWeight: "700",
-    color: "#003366",
+  rankText: {
+    color: "#666",
+    fontWeight: "600",
   },
   name: {
+    color: "#000",
     flex: 1,
-    textAlign: "left",
-    color: "#004080",
-    fontWeight: "500",
+    textAlign: "center",
+    fontSize: 16,
   },
   points: {
-    width: 90,
-    textAlign: "right",
-    fontWeight: "600",
-    color: "#0059B3",
-  },
-  // Leaderboard colors
-  firstPlace: {
-    backgroundColor: "#CCE5FF",
-  },
-  secondPlace: {
-    backgroundColor: "#D9ECFF",
-  },
-  thirdPlace: {
-    backgroundColor: "#E6F2FF",
-  },
-  otherPlaces: {
-    backgroundColor: "#F2F8FF",
+    color: "#007BFF",
+    fontWeight: "bold",
   },
   youRow: {
-    backgroundColor: "#B3D9FF",
-    marginTop: 6,
-    borderRadius: 6,
+    backgroundColor: "#E7F0FF",
+    borderRadius: 10,
+  },
+  youRankText: {
+    color: "#007BFF",
+  },
+  youName: {
+    color: "#007BFF",
+    fontWeight: "bold",
+  },
+  youPoints: {
+    color: "#007BFF",
   },
 });
