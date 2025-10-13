@@ -18,6 +18,7 @@ import Animated, {
   runOnJS,
 } from "react-native-reanimated";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import { LinearGradient } from "expo-linear-gradient"; // ✅ Added for gradient header
 
 type NotificationItem = {
   id: string;
@@ -103,7 +104,7 @@ export default function Notifications() {
       { text: "Clear", style: "destructive", onPress: () => setNotifications([]) },
     ]);
 
-  // Swipeable row wrapper
+  // Swipeable row
   const SwipeableRow = ({ children, onDismiss, id }: any) => {
     const translateX = useSharedValue(0);
     const rowHeight = useSharedValue(1);
@@ -192,8 +193,13 @@ export default function Notifications() {
 
   return (
     <View style={styles.screen}>
-      {/* Header */}
-      <View style={styles.header}>
+      {/* ✅ Gradient Header (matches Veritas Home Page) */}
+      <LinearGradient
+        colors={["#6B21A8", "#A855F7"]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={styles.header}
+      >
         <View style={styles.headerLeft}>
           <Ionicons name="notifications" size={22} color="white" />
           <Text style={styles.headerTitle}>Notifications</Text>
@@ -212,7 +218,7 @@ export default function Notifications() {
             <Ionicons name="trash-outline" size={20} color="white" />
           </Pressable>
         </View>
-      </View>
+      </LinearGradient>
 
       {/* List */}
       <SectionList
@@ -221,16 +227,14 @@ export default function Notifications() {
         renderItem={renderItem}
         renderSectionHeader={renderSectionHeader}
         refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor="#A78BFA"
-          />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#A78BFA" />
         }
         ListEmptyComponent={
           <View style={styles.empty}>
             <Image
-              source={{ uri: "https://img.icons8.com/ios/100/A78BFA/notifications--v1.png" }}
+              source={{
+                uri: "https://img.icons8.com/ios/100/A78BFA/notifications--v1.png",
+              }}
               style={{ width: 80, height: 80, marginBottom: 12 }}
             />
             <Text style={styles.emptyTitle}>You're all caught up</Text>
@@ -247,15 +251,18 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: "#111827" },
 
   header: {
-    backgroundColor: "#8B5CF6",
     paddingTop: 46,
     paddingBottom: 14,
     paddingHorizontal: 16,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    elevation: 4,
+    elevation: 6,
+    shadowColor: "#A855F7",
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
   },
+
   headerLeft: { flexDirection: "row", alignItems: "center" },
   headerTitle: { color: "white", fontSize: 18, fontWeight: "700", marginLeft: 10 },
   unreadBadge: {

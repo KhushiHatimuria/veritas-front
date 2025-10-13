@@ -11,13 +11,13 @@ import {
   Platform,
   ToastAndroid,
   Alert,
+  Animated,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-
-import Menu from "../Components/Menu"; // ✅ Drawer Menu
-import LogoutModal from "../Components/LogoutModal"; // ✅ Logout modal
-import Chatbot from "../Components/Chatbot"; // ✅ Floating chatbot
+import Menu from "../Components/Menu";
+import LogoutModal from "../Components/LogoutModal";
+import Chatbot from "../Components/Chatbot";
 
 const TRENDING = [
   { id: "t1", title: "Trending news" },
@@ -36,8 +36,17 @@ export default function ArchivesScreen() {
   const [menuVisible, setMenuVisible] = useState(false);
   const [showLogout, setShowLogout] = useState(false);
   const [posts, setPosts] = useState<Post[]>([]);
+  const fadeAnim = useState(new Animated.Value(0))[0];
 
-  // ✅ Load posts (dummy + AsyncStorage)
+  // Fade-in animation
+  useEffect(() => {
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 800,
+      useNativeDriver: true,
+    }).start();
+  }, []);
+
   useEffect(() => {
     const loadPosts = async () => {
       const stored = await AsyncStorage.getItem("user_posts");
@@ -56,7 +65,6 @@ export default function ArchivesScreen() {
     loadPosts();
   }, []);
 
-  // ✅ Show toast/snackbar
   const showToast = (message: string) => {
     if (Platform.OS === "android") {
       ToastAndroid.show(message, ToastAndroid.SHORT);
@@ -65,7 +73,6 @@ export default function ArchivesScreen() {
     }
   };
 
-  // ✅ Toggle archive/unarchive
   const toggleArchive = async (id: string) => {
     const updated = posts.map((p) =>
       p.id === id ? { ...p, archived: !p.archived } : p
@@ -74,42 +81,51 @@ export default function ArchivesScreen() {
     await AsyncStorage.setItem("user_posts", JSON.stringify(updated));
 
     const isUnarchived = updated.find((p) => p.id === id)?.archived === false;
-    if (isUnarchived) {
-      showToast("✅ Post unarchived successfully!");
-    } else {
-      showToast("📦 Post archived!");
-    }
+    if (isUnarchived) showToast("✅ Post unarchived successfully!");
+    else showToast("📦 Post archived!");
   };
 
   const archivedPosts = posts.filter((p) => p.archived);
 
   return (
-    <View style={{ flex: 1, backgroundColor: "#f9fafb" }}>
+    <Animated.View
+      style={[
+        styles.container,
+        {
+          opacity: fadeAnim,
+          transform: [
+            {
+              scale: fadeAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0.98, 1],
+              }),
+            },
+          ],
+        },
+      ]}
+    >
       {/* ✅ Top Bar */}
       <View style={styles.topBar}>
-        <Ionicons name="home" size={22} />
+        <Ionicons name="home" size={22} color="#bb86fc" />
         <Text style={styles.brand}>Veritas</Text>
-
         <View style={{ flexDirection: "row", alignItems: "center" }}>
           <Pressable
             style={{ marginRight: 16 }}
             onPress={() => router.push("/notifications")}
           >
-            <Ionicons name="notifications-outline" size={22} />
+            <Ionicons name="notifications-outline" size={22} color="#bb86fc" />
           </Pressable>
-
           <Pressable
             style={{ marginRight: 16 }}
             onPress={() => setMenuVisible(true)}
           >
-            <Ionicons name="menu-outline" size={26} />
+            <Ionicons name="menu-outline" size={26} color="#bb86fc" />
           </Pressable>
-
-          <Ionicons name="person-circle-outline" size={26} />
+          <Ionicons name="person-circle-outline" size={26} color="#bb86fc" />
         </View>
       </View>
 
-      {/* ✅ Scrollable List */}
+      {/* ✅ List */}
       <FlatList
         data={archivedPosts}
         keyExtractor={(item) => item.id}
@@ -123,18 +139,20 @@ export default function ArchivesScreen() {
               </Text>
             </View>
 
-            {/* ✅ Trending Section */}
             <Text style={[styles.sectionTitle, { marginTop: 24 }]}>
               What do you want to browse?
             </Text>
+
             <FlatList
               horizontal
               data={TRENDING}
               keyExtractor={(item) => item.id}
               renderItem={({ item }) => (
-                <View style={styles.trendCard}>
+                <Animated.View
+                  style={[styles.trendCard, { transform: [{ scale: 1 }] }]}
+                >
                   <Text style={styles.trendTitle}>{item.title}</Text>
-                </View>
+                </Animated.View>
               )}
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={{ paddingHorizontal: 16 }}
@@ -145,17 +163,20 @@ export default function ArchivesScreen() {
           </>
         }
         renderItem={({ item }) => (
-          <View style={styles.postCard}>
+          <Animated.View style={styles.postCard}>
             <Text style={styles.postText}>{item.content}</Text>
-
             <Pressable
               style={styles.unarchiveBtn}
               onPress={() => toggleArchive(item.id)}
             >
-              <Ionicons name="arrow-up-circle-outline" size={18} color="#fff" />
+              <Ionicons
+                name="arrow-up-circle-outline"
+                size={18}
+                color="#fff"
+              />
               <Text style={styles.unarchiveText}>Unarchive</Text>
             </Pressable>
-          </View>
+          </Animated.View>
         )}
         ListEmptyComponent={
           <Text style={styles.emptyText}>No archived posts yet</Text>
@@ -202,11 +223,15 @@ export default function ArchivesScreen() {
 
       {/* ✅ Logout Modal */}
       <LogoutModal visible={showLogout} onClose={() => setShowLogout(false)} />
-    </View>
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#0a0a0f",
+  },
   topBar: {
     paddingHorizontal: 16,
     paddingTop: 14,
@@ -214,20 +239,24 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "white",
+    backgroundColor: "#121212",
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "#e5e7eb",
+    borderBottomColor: "#2a2a2a",
   },
-  brand: { fontSize: 20, fontWeight: "700" },
+  brand: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#bb86fc",
+  },
   sectionTitle: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#111827",
+    color: "#eaeaea",
     marginLeft: 16,
   },
   subText: {
     fontSize: 13,
-    color: "#6b7280",
+    color: "#9ca3af",
     marginLeft: 16,
     marginTop: 4,
   },
@@ -235,46 +264,56 @@ const styles = StyleSheet.create({
     height: 120,
     width: 140,
     borderRadius: 14,
-    backgroundColor: "white",
+    backgroundColor: "#1e1e2e",
     borderWidth: 1,
-    borderColor: "#e5e7eb",
+    borderColor: "#3b3b55",
     justifyContent: "center",
     alignItems: "center",
     marginRight: 12,
+    shadowColor: "#bb86fc",
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
   },
-  trendTitle: { fontWeight: "700", textAlign: "center" },
+  trendTitle: {
+    fontWeight: "700",
+    color: "#cfcfff",
+    textAlign: "center",
+  },
   divider: {
     height: 1,
-    backgroundColor: "#e5e7eb",
+    backgroundColor: "#272738",
     marginVertical: 14,
     marginHorizontal: 16,
   },
   postCard: {
-    backgroundColor: "white",
+    backgroundColor: "#1b1b27",
     marginHorizontal: 16,
     marginVertical: 8,
     borderRadius: 14,
     padding: 16,
     borderWidth: 1,
-    borderColor: "#e5e7eb",
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    borderColor: "#3b3b55",
+    shadowColor: "#bb86fc",
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
   postText: {
     fontSize: 15,
-    color: "#111827",
+    color: "#f1f1f1",
     marginBottom: 10,
   },
   unarchiveBtn: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#111827",
+    backgroundColor: "#7c3aed",
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
     alignSelf: "flex-start",
+    shadowColor: "#bb86fc",
+    shadowOpacity: 0.6,
+    shadowRadius: 10,
   },
   unarchiveText: {
     color: "#fff",
@@ -289,26 +328,40 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   bigCard: {
-    backgroundColor: "white",
+    backgroundColor: "#1e1e2e",
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
-    borderColor: "#e5e7eb",
+    borderColor: "#3b3b55",
     marginBottom: 16,
+    shadowColor: "#7c3aed",
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
   },
-  bigCardTitle: { fontSize: 18, fontWeight: "700", marginBottom: 6 },
-  bigCardText: { color: "#374151", marginBottom: 12 },
+  bigCardTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#eaeaea",
+    marginBottom: 6,
+  },
+  bigCardText: {
+    color: "#cfcfff",
+    marginBottom: 12,
+  },
   cta: {
     alignSelf: "flex-start",
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 10,
-    backgroundColor: "#111827",
+    backgroundColor: "#7c3aed",
   },
-  ctaText: { color: "white", fontWeight: "600" },
+  ctaText: {
+    color: "white",
+    fontWeight: "600",
+  },
   overlay: {
     flex: 1,
     flexDirection: "row",
-    backgroundColor: "rgba(0,0,0,0.3)",
+    backgroundColor: "rgba(0,0,0,0.5)",
   },
 });

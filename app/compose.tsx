@@ -13,7 +13,8 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
-import useProfileStore from "../store/useProfileStore";
+// Import the axios client
+import apiClient from "../api/api"; // ✅ Adjust path if needed
 
 export default function ComposeScreen() {
   const [text, setText] = useState("");
@@ -61,18 +62,52 @@ export default function ComposeScreen() {
     if (found) setLinkPreview(found);
   };
 
-  const handlePost = () => {
+  // ✅ Modified handlePost to match backend endpoints
+  const handlePost = async () => {
     if (!text.trim() && !mediaUri && !audioUri) return;
+
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      Alert.alert("✅ Success", "Your verification request has been submitted!");
+
+    try {
+      let response;
+
+      if (mediaUri) {
+        // 📸 Send image to detect/image endpoint
+        const formData = new FormData();
+        formData.append("image", {
+          uri: mediaUri,
+          name: "photo.jpg",
+          type: "image/jpeg",
+        } as any);
+
+        response = await apiClient.post("/api/v1/detect/image", formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+
+      } else if (text.trim()) {
+        // 🧠 Send text to misinfo endpoint
+        response = await apiClient.post("/api/v1/misinfo", { text });
+      } else {
+        Alert.alert("No content", "Please add text or image to verify.");
+        return;
+      }
+
+      console.log("✅ Backend response:", response.data);
+      Alert.alert("✅ Success", "Verification completed successfully!");
+
+      // Reset state and go back
       setText("");
       setMediaUri(null);
       setAudioUri(null);
       setLinkPreview(null);
       router.back();
-    }, 1200);
+
+    } catch (error) {
+      console.error("❌ Failed to verify:", error);
+      Alert.alert("❌ Error", "Could not connect to backend. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

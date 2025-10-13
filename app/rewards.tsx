@@ -1,7 +1,16 @@
-import React, { useState, useEffect } from "react";
-import { View, Text, FlatList, StyleSheet, Image } from "react-native";
+import React, { useState, useEffect, useRef } from "react";
+import {
+  View,
+  Text,
+  FlatList,
+  StyleSheet,
+  Image,
+  Animated,
+  Easing,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import useProfileStore from "../store/useProfileStore"; // ✅ Import the global store
+import { LinearGradient } from "expo-linear-gradient";
+import useProfileStore from "../store/useProfileStore";
 
 type LeaderboardItem = {
   id: string;
@@ -11,11 +20,10 @@ type LeaderboardItem = {
 
 type Badge = {
   id: string;
-  icon: keyof typeof Ionicons.glyphMap;
+  image: any;
 };
 
 const RewardsPage: React.FC = () => {
-  // ✅ Access global profile data from Zustand store
   const { profile } = useProfileStore();
   const { name, photo } = profile;
 
@@ -23,24 +31,52 @@ const RewardsPage: React.FC = () => {
   const [badges, setBadges] = useState<Badge[]>([]);
   const [leaderboard, setLeaderboard] = useState<LeaderboardItem[]>([]);
 
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
   useEffect(() => {
-    // ✅ Example mock data — replace with API later if needed
     setBalance(2600);
     setBadges([
-      { id: "1", icon: "medal" },
-      { id: "2", icon: "ribbon" },
-      { id: "3", icon: "trophy" },
-      { id: "4", icon: "star" },
+      { id: "1", image: require("../assets/badge1.jpg") },
+      { id: "2", image: require("../assets/badge2.jpg") },
+      { id: "3", image: require("../assets/badge3.jpg") },
+      { id: "4", image: require("../assets/badge4.jpg") },
     ]);
+
     setLeaderboard([
-      { id: "1", name: "Alice", points: 2000 },
-      { id: "2", name: "Bob", points: 1800 },
-      { id: "3", name: "Charlie", points: 1600 },
+      { id: "1", name: "ALICE", points: 2000 },
+      { id: "2", name: "BOB", points: 1800 },
+      { id: "3", name: "CHARLIE", points: 1600 },
       { id: "4", name: name || "You", points: 1200 },
     ]);
+
+    // 🔮 Badge pulse animation
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1.2,
+          duration: 1000,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 1000,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+
+    // ✨ Fade in leaderboard
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 700,
+      easing: Easing.out(Easing.ease),
+      useNativeDriver: true,
+    }).start();
   }, [name]);
 
-  // ✅ Renders leaderboard rows
   const renderLeaderboard = ({
     item,
     index,
@@ -48,90 +84,103 @@ const RewardsPage: React.FC = () => {
     item: LeaderboardItem;
     index: number;
   }) => (
-    <View
-      style={[
-        styles.leaderboardRow,
-        item.name === (name || "You") && styles.youRow,
-      ]}
+    <Animated.View
+      style={{
+        opacity: fadeAnim,
+        transform: [
+          {
+            translateY: fadeAnim.interpolate({
+              inputRange: [0, 1],
+              outputRange: [20, 0],
+            }),
+          },
+        ],
+      }}
     >
-      <Text
-        style={[
-          styles.rankText,
-          item.name === (name || "You") && styles.youRankText,
-        ]}
-      >
-        #{index + 1}
-      </Text>
-      <Text
-        style={[styles.name, item.name === (name || "You") && styles.youName]}
-      >
-        {item.name}
-      </Text>
-      <Text
-        style={[
-          styles.points,
-          item.name === (name || "You") && styles.youPoints,
-        ]}
-      >
-        {item.points} pts
-      </Text>
-    </View>
+      <View style={styles.leaderboardRow}>
+        <Text style={styles.rankText}>#{index + 1}</Text>
+        <Text
+          style={[
+            styles.name,
+            item.name === (name || "You") && styles.youHighlight,
+          ]}
+        >
+          {item.name}
+        </Text>
+        <Text
+          style={[
+            styles.points,
+            item.name === (name || "You") && styles.youHighlight,
+          ]}
+        >
+          {item.points} pts
+        </Text>
+      </View>
+    </Animated.View>
   );
 
   return (
-    <View style={styles.container}>
-      {/* ✅ Profile Header */}
+    <LinearGradient colors={["#0d0d0d", "#1a0033"]} style={styles.container}>
+      {/* 👤 Profile Header */}
       <View style={styles.profileHeader}>
         <View style={styles.avatar}>
           {photo ? (
             <Image
               source={{ uri: photo }}
-              style={{ width: 70, height: 70, borderRadius: 35 }}
+              style={{ width: 80, height: 80, borderRadius: 40 }}
             />
           ) : (
-            <Ionicons name="person-circle" size={70} color="#007BFF" />
+            <Ionicons name="person-circle" size={80} color="#a64dff" />
           )}
         </View>
 
         <Text style={styles.username}>{name || "Mr. Explore"}</Text>
         <Text style={styles.level}>LEVEL 12</Text>
 
+        {/* 🌌 Stats Row */}
         <View style={styles.statsRow}>
-          <View style={styles.statBox}>
+          <LinearGradient colors={["#2e005e", "#6a0dad"]} style={styles.statBox}>
             <Text style={styles.statValue}>15</Text>
             <Text style={styles.statLabel}>Streak Days</Text>
-          </View>
-          <View style={styles.statBox}>
+          </LinearGradient>
+          <LinearGradient colors={["#2e005e", "#6a0dad"]} style={styles.statBox}>
             <Text style={styles.statValue}>Gold</Text>
-            <Text style={styles.statLabel}>Current League</Text>
-          </View>
-          <View style={styles.statBox}>
+            <Text style={styles.statLabel}>League</Text>
+          </LinearGradient>
+          <LinearGradient colors={["#2e005e", "#6a0dad"]} style={styles.statBox}>
             <Text style={styles.statValue}>{balance / 1000}K</Text>
-            <Text style={styles.statLabel}>Total Coins</Text>
-          </View>
+            <Text style={styles.statLabel}>Coins</Text>
+          </LinearGradient>
         </View>
       </View>
 
-      {/* ✅ Badges Section */}
+      {/* 🛡️ Badges */}
       <Text style={styles.sectionTitle}>Badges</Text>
       <View style={styles.badgesRow}>
         {badges.map((badge) => (
-          <View key={badge.id} style={styles.badge}>
-            <Ionicons name={badge.icon} size={30} color="#007BFF" />
-          </View>
+          <Animated.View
+            key={badge.id}
+            style={[styles.badge, { transform: [{ scale: pulseAnim }] }]}
+          >
+            <Image
+              source={badge.image}
+              style={{ width: 40, height: 40, resizeMode: "contain" }}
+            />
+          </Animated.View>
         ))}
       </View>
 
-      {/* ✅ Leaderboard Section */}
+      {/* 🏆 Leaderboard */}
       <Text style={styles.sectionTitle}>Leaderboard</Text>
-      <FlatList
-        data={leaderboard}
-        renderItem={renderLeaderboard}
-        keyExtractor={(item) => item.id}
-        scrollEnabled={false}
-        style={styles.leaderboardList}
-      />
-    </View>
+      <View style={styles.leaderboardList}>
+        <FlatList
+          data={leaderboard}
+          renderItem={renderLeaderboard}
+          keyExtractor={(item) => item.id}
+          scrollEnabled={false}
+        />
+      </View>
+    </LinearGradient>
   );
 };
 
@@ -140,9 +189,8 @@ export default RewardsPage;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
     paddingHorizontal: 20,
-    paddingTop: 50,
+    paddingTop: 60,
   },
   profileHeader: {
     alignItems: "center",
@@ -150,14 +198,18 @@ const styles = StyleSheet.create({
   },
   avatar: {
     marginBottom: 10,
+    shadowColor: "#a64dff",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.9,
+    shadowRadius: 20,
   },
   username: {
-    color: "#000",
-    fontSize: 20,
+    color: "#fff",
+    fontSize: 22,
     fontWeight: "700",
   },
   level: {
-    color: "#007BFF",
+    color: "#c77dff",
     fontSize: 14,
     marginBottom: 10,
   },
@@ -168,28 +220,23 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   statBox: {
-    backgroundColor: "#F2F4F8",
-    borderRadius: 10,
-    padding: 10,
+    borderRadius: 12,
+    padding: 12,
     alignItems: "center",
     flex: 1,
     marginHorizontal: 5,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
   },
   statValue: {
-    color: "#007BFF",
+    color: "#fff",
     fontSize: 18,
     fontWeight: "700",
   },
   statLabel: {
-    color: "#555",
+    color: "#bbb",
     fontSize: 12,
   },
   sectionTitle: {
-    color: "#000",
+    color: "#fff",
     fontSize: 18,
     fontWeight: "bold",
     marginBottom: 10,
@@ -200,17 +247,16 @@ const styles = StyleSheet.create({
     marginBottom: 25,
   },
   badge: {
-    backgroundColor: "#F2F4F8",
-    padding: 12,
+    backgroundColor: "#1f003d",
+    padding: 14,
     borderRadius: 50,
     marginHorizontal: 6,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
+    shadowColor: "#a64dff",
+    shadowOpacity: 0.8,
+    shadowRadius: 8,
   },
   leaderboardList: {
-    backgroundColor: "#F2F4F8",
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
     borderRadius: 12,
     padding: 10,
   },
@@ -220,34 +266,25 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: "#E0E0E0",
+    borderBottomColor: "rgba(255,255,255,0.1)",
+    borderRadius: 8,
+    paddingHorizontal: 10,
   },
   rankText: {
-    color: "#666",
-    fontWeight: "600",
+    color: "#c77dff",
+    fontWeight: "700",
   },
   name: {
-    color: "#000",
+    color: "#fff",
     flex: 1,
     textAlign: "center",
     fontSize: 16,
   },
   points: {
-    color: "#007BFF",
+    color: "#c77dff",
     fontWeight: "bold",
   },
-  youRow: {
-    backgroundColor: "#E7F0FF",
-    borderRadius: 10,
-  },
-  youRankText: {
-    color: "#007BFF",
-  },
-  youName: {
-    color: "#007BFF",
-    fontWeight: "bold",
-  },
-  youPoints: {
-    color: "#007BFF",
+  youHighlight: {
+    color: "#d58cff",
   },
 });

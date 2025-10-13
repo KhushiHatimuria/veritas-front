@@ -7,11 +7,10 @@ export default function Language() {
   const languages = ["English", "French", "German", "Spanish", "Chinese", "Hindi"];
   const [selected, setSelected] = useState<string | null>(null);
 
-  // Flicker animation
+  // --- Flicker animation ---
   const flickerAnim = useRef(new Animated.Value(0)).current;
   const [shuffleDone, setShuffleDone] = useState(false);
 
-  // Start flicker loop only until shuffle completes
   useEffect(() => {
     if (!shuffleDone) {
       const loop = Animated.loop(
@@ -33,13 +32,12 @@ export default function Language() {
     }
   }, [flickerAnim, shuffleDone]);
 
-  // Flicker color (active only during shuffle)
   const flickerColor = flickerAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: ["#ffffff", "#00eaff"], // flicker white ↔ neon blue
+    outputRange: ["#ffffff", "#a855f7"], // white ↔ neon purple
   });
 
-  // Shuffle text effect
+  // --- Shuffle text effect ---
   const originalTitle = "What language would you like to choose?";
   const [shuffledTitle, setShuffledTitle] = useState(originalTitle);
 
@@ -58,11 +56,11 @@ export default function Language() {
           .join("")
       );
 
-      iteration += 1 / 3; // controls how fast letters settle
+      iteration += 1 / 3;
       if (iteration >= originalTitle.length) {
         clearInterval(interval);
-        setShuffledTitle(originalTitle); // final resolved text
-        setShuffleDone(true); // stop flicker after shuffle
+        setShuffledTitle(originalTitle);
+        setShuffleDone(true);
       }
     }, 50);
 
@@ -71,16 +69,16 @@ export default function Language() {
 
   return (
     <ImageBackground
-      source={require("../../assets/background3.jpg")}
+      source={require("../../assets/bg1.jpg")}
       style={styles.background}
       resizeMode="cover"
     >
       <View style={styles.overlay}>
-        {/* Flicker only until shuffle finishes, then solid neon blue */}
+        {/* Title with flicker effect */}
         <Animated.Text
           style={[
             styles.title,
-            { color: shuffleDone ? "#00eaff" : flickerColor },
+            { color: shuffleDone ? "#a855f7" : flickerColor },
           ]}
         >
           {shuffledTitle}
@@ -96,11 +94,25 @@ export default function Language() {
             }}
           >
             <LinearGradient
-              colors={["#005bea", "#00c6fb"]}
+              colors={["#7e22ce", "#a855f7", "#9333ea"]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
-              style={styles.option}
+              style={[
+                styles.option,
+                selected === lang && styles.optionSelected,
+              ]}
             >
+              <Animated.View
+                style={[
+                  styles.glow,
+                  {
+                    opacity: flickerAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0.4, 0.9],
+                    }),
+                  },
+                ]}
+              />
               <View
                 style={[styles.circle, selected === lang && styles.circleSelected]}
               />
@@ -121,30 +133,54 @@ const styles = StyleSheet.create({
   },
   overlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.65)",
+    backgroundColor: "rgba(10, 10, 25, 0.85)",
     justifyContent: "center",
     alignItems: "center",
     padding: 20,
   },
   title: {
     fontSize: 20,
-    marginBottom: 20,
+    marginBottom: 24,
     textAlign: "center",
     fontWeight: "bold",
     letterSpacing: 1,
+    textShadowColor: "rgba(168,85,247,0.8)",
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 10,
   },
   optionWrapper: {
     width: "80%",
     marginVertical: 8,
-    borderRadius: 10,
+    borderRadius: 12,
     overflow: "hidden",
+    position: "relative",
   },
   option: {
     flexDirection: "row",
     alignItems: "center",
     padding: 14,
-    borderRadius: 10,
+    borderRadius: 12,
     width: "100%",
+    justifyContent: "flex-start", // 👈 Align circle + text to the left
+    paddingHorizontal: 20,        // 👈 Add left padding for breathing room
+  },
+  optionSelected: {
+    borderWidth: 1.5,
+    borderColor: "#d8b4fe",
+    shadowColor: "#a855f7",
+    shadowOpacity: 0.6,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 0 },
+  },
+  glow: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 12,
+    backgroundColor: "#a855f7",
+    opacity: 0.2,
   },
   circle: {
     width: 20,
@@ -162,5 +198,8 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 16,
     fontWeight: "600",
+    textShadowColor: "rgba(0,0,0,0.4)",
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 4,
   },
 });

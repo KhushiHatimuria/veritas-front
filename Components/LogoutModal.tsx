@@ -1,5 +1,13 @@
-import React from "react";
-import { View, Text, Modal, TouchableOpacity, StyleSheet } from "react-native";
+import React, { useEffect, useRef } from "react";
+import {
+  View,
+  Text,
+  Modal,
+  TouchableOpacity,
+  StyleSheet,
+  Animated,
+  Easing,
+} from "react-native";
 import { useRouter } from "expo-router";
 
 type LogoutModalProps = {
@@ -9,26 +17,60 @@ type LogoutModalProps = {
 
 export default function LogoutModal({ visible, onClose }: LogoutModalProps) {
   const router = useRouter();
+  const scaleAnim = useRef(new Animated.Value(0.8)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  // 🔮 Animation for modal appearance
+  useEffect(() => {
+    if (visible) {
+      Animated.parallel([
+        Animated.timing(scaleAnim, {
+          toValue: 1,
+          duration: 300,
+          easing: Easing.out(Easing.exp),
+          useNativeDriver: true,
+        }),
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else {
+      Animated.parallel([
+        Animated.timing(scaleAnim, {
+          toValue: 0.8,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(fadeAnim, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [visible]);
 
   const handleYes = () => {
     onClose();
     router.replace("/"); // Redirect to login/landing page
   };
 
-  const handleNo = () => {
-    onClose(); // Just close the modal (stay in app)
-  };
-
   return (
     <Modal
       transparent
       visible={visible}
-      animationType="fade"
-      presentationStyle="overFullScreen" // 👈 added here
+      animationType="none"
       onRequestClose={onClose}
     >
       <View style={styles.overlay}>
-        <View style={styles.modalContainer}>
+        <Animated.View
+          style={[
+            styles.modalContainer,
+            { opacity: fadeAnim, transform: [{ scale: scaleAnim }] },
+          ]}
+        >
           <Text style={styles.title}>Are you sure you want to log out?</Text>
 
           <View style={styles.buttonContainer}>
@@ -36,11 +78,11 @@ export default function LogoutModal({ visible, onClose }: LogoutModalProps) {
               <Text style={styles.buttonText}>Yes</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.noButton} onPress={handleNo}>
+            <TouchableOpacity style={styles.noButton} onPress={onClose}>
               <Text style={styles.buttonText}>No</Text>
             </TouchableOpacity>
           </View>
-        </View>
+        </Animated.View>
       </View>
     </Modal>
   );
@@ -51,22 +93,30 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "rgba(0,0,0,0.5)",
+    backgroundColor: "rgba(10, 10, 20, 0.8)", // darker sci-fi vibe
   },
   modalContainer: {
-    width: "80%",
-    backgroundColor: "#fff",
-    padding: 20,
-    borderRadius: 12,
+    width: "85%",
+    backgroundColor: "#1A1A2E",
+    borderRadius: 16,
+    padding: 25,
     alignItems: "center",
-    elevation: 5,
+    borderWidth: 1,
+    borderColor: "#7A00FF",
+    shadowColor: "#9D4EDD",
+    shadowOpacity: 0.6,
+    shadowRadius: 20,
+    elevation: 15,
   },
   title: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#111827",
+    color: "#E0E0FF",
     marginBottom: 25,
     textAlign: "center",
+    textShadowColor: "#A855F7",
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 10,
   },
   buttonContainer: {
     flexDirection: "row",
@@ -74,20 +124,33 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   yesButton: {
-    backgroundColor: "#EF4444",
-    paddingVertical: 10,
-    paddingHorizontal: 25,
-    borderRadius: 8,
+    backgroundColor: "#7C3AED",
+    paddingVertical: 12,
+    paddingHorizontal: 28,
+    borderRadius: 10,
+    flex: 1,
+    marginHorizontal: 5,
+    shadowColor: "#C084FC",
+    shadowOpacity: 0.8,
+    shadowRadius: 8,
+    elevation: 8,
   },
   noButton: {
-    backgroundColor: "#3B82F6",
-    paddingVertical: 10,
-    paddingHorizontal: 25,
-    borderRadius: 8,
+    backgroundColor: "#9333EA",
+    paddingVertical: 12,
+    paddingHorizontal: 28,
+    borderRadius: 10,
+    flex: 1,
+    marginHorizontal: 5,
+    shadowColor: "#C084FC",
+    shadowOpacity: 0.8,
+    shadowRadius: 8,
+    elevation: 8,
   },
   buttonText: {
-    color: "#fff",
+    color: "#F5F3FF",
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "700",
+    textAlign: "center",
   },
 });

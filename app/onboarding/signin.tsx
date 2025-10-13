@@ -5,13 +5,13 @@ import {
   TextInput,
   Pressable,
   StyleSheet,
-  Image,
   ImageBackground,
   TouchableOpacity,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import useProfileStore from "../../store/useProfileStore";
+import { LinearGradient } from "expo-linear-gradient";
 
 export default function Signin() {
   const [activeTab, setActiveTab] = useState("signin");
@@ -39,21 +39,13 @@ export default function Signin() {
 
   return (
     <ImageBackground
-      source={require("../../assets/background3.jpg")}
+      source={require("../../assets/bg1.jpg")}
       style={styles.bg}
       resizeMode="cover"
     >
-      <View style={styles.container}>
-        {/* Logo + App name */}
-        <View style={styles.header}>
-          <View style={styles.logoContainer}>
-            <Image
-              source={require("../../assets/logo1.jpg")}
-              style={styles.logo}
-            />
-          </View>
-          <Text style={styles.title}>Veritas</Text>
-        </View>
+      <View style={styles.overlay}>
+        {/* App Name */}
+        <Text style={styles.title}>Veritas</Text>
 
         {/* Tabs */}
         <View style={styles.tabContainer}>
@@ -96,28 +88,13 @@ export default function Signin() {
           </Pressable>
         </View>
 
-        {/* ✅ Google Sign In / Sign Up */}
-        <Pressable style={styles.googleBtn}>
-          <Image
-            source={require("../../assets/google.png")} // Local asset
-            style={styles.googleIcon}
-          />
-          <Text style={styles.googleText}>
-            {activeTab === "signin"
-              ? "Sign In with Google"
-              : "Sign Up with Google"}
-          </Text>
-        </Pressable>
-
-        <Text style={styles.orText}>or</Text>
-
         {/* Inputs */}
         {activeTab === "signin" ? (
           <>
             <TextInput
               style={styles.input}
               placeholder="Enter your Email"
-              placeholderTextColor="#555"
+              placeholderTextColor="#aaa"
               value={email}
               onChangeText={setEmail}
             />
@@ -127,7 +104,7 @@ export default function Signin() {
               <TextInput
                 style={styles.passwordInput}
                 placeholder="Password"
-                placeholderTextColor="#555"
+                placeholderTextColor="#aaa"
                 secureTextEntry={!showPassword}
                 value={password}
                 onChangeText={setPassword}
@@ -139,7 +116,7 @@ export default function Signin() {
                 <Ionicons
                   name={showPassword ? "eye-off" : "eye"}
                   size={22}
-                  color="#0074D9"
+                  color="#a855f7"
                 />
               </TouchableOpacity>
             </View>
@@ -152,23 +129,30 @@ export default function Signin() {
             </TouchableOpacity>
 
             {/* Sign In button */}
-            <Pressable style={styles.btn} onPress={handleSignin}>
-              <Text style={styles.btnText}>Sign In</Text>
-            </Pressable>
+            <LinearGradient
+              colors={["#7e22ce", "#a855f7", "#9333ea"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.btn}
+            >
+              <Pressable onPress={handleSignin}>
+                <Text style={styles.btnText}>Sign In</Text>
+              </Pressable>
+            </LinearGradient>
           </>
         ) : (
           <>
             <TextInput
               style={styles.input}
               placeholder="Enter your Name"
-              placeholderTextColor="#555"
+              placeholderTextColor="#aaa"
               value={name}
               onChangeText={setName}
             />
             <TextInput
               style={styles.input}
               placeholder="Enter your Email"
-              placeholderTextColor="#555"
+              placeholderTextColor="#aaa"
               value={email}
               onChangeText={setEmail}
             />
@@ -178,7 +162,7 @@ export default function Signin() {
               <TextInput
                 style={styles.passwordInput}
                 placeholder="Password"
-                placeholderTextColor="#555"
+                placeholderTextColor="#aaa"
                 secureTextEntry={!showPassword}
                 value={password}
                 onChangeText={setPassword}
@@ -190,7 +174,7 @@ export default function Signin() {
                 <Ionicons
                   name={showPassword ? "eye-off" : "eye"}
                   size={22}
-                  color="#0074D9"
+                  color="#a855f7"
                 />
               </TouchableOpacity>
             </View>
@@ -200,7 +184,7 @@ export default function Signin() {
               <TextInput
                 style={styles.passwordInput}
                 placeholder="Confirm Password"
-                placeholderTextColor="#555"
+                placeholderTextColor="#aaa"
                 secureTextEntry={!showConfirmPassword}
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
@@ -214,15 +198,22 @@ export default function Signin() {
                 <Ionicons
                   name={showConfirmPassword ? "eye-off" : "eye"}
                   size={22}
-                  color="#0074D9"
+                  color="#a855f7"
                 />
               </TouchableOpacity>
             </View>
 
             {/* Create Account button */}
-            <Pressable style={styles.btn} onPress={handleSignup}>
-              <Text style={styles.btnText}>Create Account</Text>
-            </Pressable>
+            <LinearGradient
+              colors={["#7e22ce", "#a855f7", "#9333ea"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.btn}
+            >
+              <Pressable onPress={handleSignup}>
+                <Text style={styles.btnText}>Create Account</Text>
+              </Pressable>
+            </LinearGradient>
           </>
         )}
 
@@ -239,38 +230,28 @@ export default function Signin() {
 
 const styles = StyleSheet.create({
   bg: { flex: 1, width: "100%", height: "100%" },
-  container: {
+  overlay: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    backgroundColor: "rgba(10,10,25,0.85)",
     justifyContent: "center",
     alignItems: "center",
     padding: 20,
   },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 20,
+  title: {
+    color: "#a855f7",
+    fontSize: 30,
+    fontWeight: "800",
+    marginBottom: 30,
+    textShadowColor: "rgba(168,85,247,0.7)",
+    textShadowRadius: 12,
   },
-  logoContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "white",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 10,
-    overflow: "hidden",
-  },
-  logo: { width: "100%", height: "100%", resizeMode: "cover" },
-  title: { color: "white", fontSize: 26, fontWeight: "700" },
-
   // Tabs
   tabContainer: {
     flexDirection: "row",
     backgroundColor: "rgba(255,255,255,0.05)",
     borderRadius: 30,
     padding: 4,
-    marginBottom: 20,
+    marginBottom: 25,
     width: "100%",
   },
   tab: {
@@ -279,68 +260,60 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     alignItems: "center",
   },
-  activeTab: { backgroundColor: "#0074D9" },
-  inactiveTab: { borderWidth: 1, borderColor: "#0074D9" },
+  activeTab: { backgroundColor: "#9333ea" },
+  inactiveTab: { borderWidth: 1, borderColor: "#a855f7" },
   tabText: { fontSize: 16, fontWeight: "600" },
   activeTabText: { color: "white" },
-  inactiveTabText: { color: "#0074D9" },
-
-  // Google button
-  googleBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.9)",
-    padding: 12,
-    borderRadius: 8,
-    width: "100%",
-    marginBottom: 12,
-  },
-  googleIcon: { width: 22, height: 22, marginRight: 10, resizeMode: "contain" },
-  googleText: { fontSize: 16, color: "#333", fontWeight: "500" },
-
-  orText: { color: "#aaa", marginBottom: 15 },
+  inactiveTabText: { color: "#a855f7" },
 
   input: {
-    backgroundColor: "rgba(255,255,255,0.9)",
-    borderRadius: 8,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    borderRadius: 10,
     padding: 12,
     width: "100%",
     marginBottom: 15,
-    color: "#000",
+    color: "white",
+    borderWidth: 1,
+    borderColor: "rgba(168,85,247,0.3)",
   },
 
   passwordContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.9)",
-    borderRadius: 8,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    borderRadius: 10,
     marginBottom: 10,
     width: "100%",
     paddingRight: 10,
+    borderWidth: 1,
+    borderColor: "rgba(168,85,247,0.3)",
   },
-  passwordInput: { flex: 1, padding: 12, color: "#000" },
+  passwordInput: { flex: 1, padding: 12, color: "white" },
   eyeIcon: { paddingHorizontal: 6 },
 
   btn: {
-    backgroundColor: "#0074D9",
     padding: 14,
     borderRadius: 10,
     width: "100%",
-    marginTop: 15,
+    marginTop: 20,
     marginBottom: 20,
+    shadowColor: "#a855f7",
+    shadowOpacity: 0.7,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 0 },
   },
   btnText: {
     color: "white",
     textAlign: "center",
     fontSize: 18,
-    fontWeight: "600",
+    fontWeight: "700",
   },
   forgotText: {
     alignSelf: "flex-end",
-    color: "#66b2ff",
+    color: "#c084fc",
     fontSize: 14,
     marginBottom: 10,
   },
   termsText: { color: "#aaa", fontSize: 13, textAlign: "center" },
-  link: { color: "#66b2ff" },
+  link: { color: "#a855f7" },
 });
