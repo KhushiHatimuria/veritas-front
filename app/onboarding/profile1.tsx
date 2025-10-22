@@ -18,8 +18,11 @@ import { Picker } from "@react-native-picker/picker";
 import * as ImagePicker from "expo-image-picker";
 import { LinearGradient } from "expo-linear-gradient";
 import useProfileStore from "../../store/useProfileStore";
+import { useTranslation } from 'react-i18next';
+
 
 export default function Profile1() {
+  const {t, i18n }=useTranslation();
   const { setProfile } = useProfileStore();
 
   // Local states
@@ -32,6 +35,7 @@ export default function Profile1() {
 
   const glowAnim = useRef(new Animated.Value(0)).current;
 
+  // Animation effect
   useEffect(() => {
     Animated.loop(
       Animated.sequence([
@@ -53,19 +57,16 @@ export default function Profile1() {
 
   const glowInterpolation = glowAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: ["#7b2ff7", "#f107a3"], // shifting neon gradient
+    outputRange: ["#7b2ff7", "#f107a3"],
   });
 
-  const handleSave = () => {
-    if (!name || !gender || !dob || !country) {
-      Alert.alert("Incomplete", "Please fill in all fields before continuing.");
-      return;
-    }
-    setProfile({ name, gender, dob, country, photo: profileImage });
+  // 3. Complete and corrected handleSave function
+   const handleSave = () => {
+    setProfile({ name, gender, dob, country });
     router.push("/onboarding/profile2");
   };
 
-  // Camera and Gallery
+  // Camera and Gallery functions
   const openCamera = async () => {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
     if (!permission.granted) {
@@ -99,7 +100,7 @@ export default function Profile1() {
 
   return (
     <ImageBackground
-      source={require("../../assets/bg1.jpg")} // 🌌 sci-fi bg
+      source={require("../../assets/bg1.jpg")}
       style={styles.background}
       resizeMode="cover"
     >
@@ -151,10 +152,10 @@ export default function Profile1() {
 
         {/* Inputs */}
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Name</Text>
+          <Text style={styles.label}>{t('profile1_name_label')}</Text>
           <TextInput
             style={styles.input}
-            placeholder="Enter your name"
+            placeholder={t('profile1_name_placeholder')}
             placeholderTextColor="#888"
             value={name}
             onChangeText={setName}
@@ -162,23 +163,23 @@ export default function Profile1() {
         </View>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Gender</Text>
+          <Text style={styles.label}>{t('profile1_gender_label')}</Text>
           <View style={styles.dropdown}>
             <Picker
               selectedValue={gender}
               onValueChange={(val) => setGender(val)}
               dropdownIconColor="#a85fff"
             >
-              <Picker.Item label="Select gender" value="" />
-              <Picker.Item label="Male" value="Male" />
-              <Picker.Item label="Female" value="Female" />
-              <Picker.Item label="Other" value="Other" />
+              <Picker.Item label={t('profile1_gender_placeholder')} value="" />
+              <Picker.Item label={t('profile1_gender_male')} value="Male" />
+              <Picker.Item label={t('profile1_gender_female')} value="Female" />
+              <Picker.Item label={t('profile1_gender_other')} value="Other" />
             </Picker>
           </View>
         </View>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Date of Birth</Text>
+          <Text style={styles.label}>{t('profile1_dob_label')}</Text>
           <TextInput
             style={styles.input}
             placeholder="DD/MM/YYYY"
@@ -189,19 +190,19 @@ export default function Profile1() {
         </View>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Country</Text>
+          <Text style={styles.label}>{t('profile1_country_label')}</Text>
           <View style={styles.dropdown}>
             <Picker
               selectedValue={country}
               onValueChange={(val) => setCountry(val)}
               dropdownIconColor="#a85fff"
             >
-              <Picker.Item label="Select your country" value="" />
-              <Picker.Item label="India" value="India" />
-              <Picker.Item label="USA" value="USA" />
-              <Picker.Item label="UK" value="UK" />
-              <Picker.Item label="Canada" value="Canada" />
-              <Picker.Item label="Australia" value="Australia" />
+              <Picker.Item label={t('profile1_country_placeholder')} value="" />
+              <Picker.Item label={t('country_india')} value="India" />
+              <Picker.Item label={t('country_usa')} value="USA" />
+              <Picker.Item label={t('country_uk')} value="UK" />
+              <Picker.Item label={t('country_canada')} value="Canada" />
+              <Picker.Item label={t('country_australia')} value="Australia" />
             </Picker>
           </View>
         </View>
@@ -220,7 +221,7 @@ export default function Profile1() {
             style={styles.btn}
           >
             <Pressable onPress={handleSave}>
-              <Text style={styles.btnText}>Save & Continue </Text>
+              <Text style={styles.btnText}>{t('profile1_save_button')} </Text>
             </Pressable>
           </LinearGradient>
         </Animated.View>
@@ -237,7 +238,7 @@ const styles = StyleSheet.create({
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(10, 0, 25, 0.6)", // dark violet overlay
+    backgroundColor: "rgba(10, 0, 25, 0.6)",
   },
   container: {
     flex: 1,

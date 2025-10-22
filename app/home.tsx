@@ -13,7 +13,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from "expo-linear-gradient";
-import { MotiView, AnimatePresence } from "moti";
+import { MotiView } from "moti";
 
 import Menu from "../Components/Menu";
 import LogoutModal from "../Components/LogoutModal";
@@ -29,6 +29,14 @@ const CATEGORIES = [
   { id: "c5", title: "Science", icon: "planet-outline", color: "#663399" },
 ];
 
+// Dummy stories data
+const STORIES = [
+  { id: "s1", name: "Alex", photo: "https://randomuser.me/api/portraits/men/31.jpg" },
+  { id: "s2", name: "Nia", photo: "https://randomuser.me/api/portraits/women/44.jpg" },
+  { id: "s3", name: "Sam", photo: "https://randomuser.me/api/portraits/men/12.jpg" },
+  { id: "s4", name: "Leah", photo: "https://randomuser.me/api/portraits/women/21.jpg" },
+];
+
 interface Post {
   id: string;
   content: string;
@@ -40,7 +48,7 @@ export default function HomeScreen() {
   const [showLogout, setShowLogout] = useState(false);
   const [posts, setPosts] = useState<Post[]>([]);
   const [showRating, setShowRating] = useState(false);
-  const [activeCategory, setActiveCategory] = useState<string | null>(null); // ✅ For highlighting
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
 
   const { profile } = useProfileStore();
 
@@ -77,30 +85,41 @@ export default function HomeScreen() {
 
   const handleCategoryPress = (categoryId: string) => {
     setActiveCategory(categoryId);
-    // Example navigation — you can adjust this route
     router.push(`/category/${categoryId}`);
-    setTimeout(() => setActiveCategory(null), 400); // reset highlight
+    setTimeout(() => setActiveCategory(null), 400);
   };
 
+  // 👤 Stories row
+  const renderStories = () => (
+    <View style={styles.storiesContainer}>
+      <FlatList
+        data={STORIES}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => (
+          <View style={styles.storyItem}>
+            <Image source={{ uri: item.photo }} style={styles.storyAvatar} />
+            <Text style={styles.storyName}>{item.name}</Text>
+          </View>
+        )}
+      />
+    </View>
+  );
+
+  // 🌌 Header
   const renderHeader = () => (
     <>
-      {/* 🔮 Gradient Top Bar */}
       <MotiView from={{ opacity: 0, translateY: -20 }} animate={{ opacity: 1, translateY: 0 }}>
         <LinearGradient colors={["#4B0082", "#8A2BE2"]} style={styles.topBar}>
-          <Text style={styles.brand}> Veritas</Text>
+          <Text style={styles.brand}>Veritas</Text>
 
           <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <Pressable
-              style={{ marginRight: 16 }}
-              onPress={() => router.push("/notifications")}
-            >
+            <Pressable style={{ marginRight: 16 }} onPress={() => router.push("/notifications")}>
               <Ionicons name="notifications-outline" size={22} color="#EAEAEA" />
             </Pressable>
 
-            <Pressable
-              style={{ marginRight: 16 }}
-              onPress={() => setMenuVisible(true)}
-            >
+            <Pressable style={{ marginRight: 16 }} onPress={() => setMenuVisible(true)}>
               <Ionicons name="menu-outline" size={26} color="#EAEAEA" />
             </Pressable>
 
@@ -116,16 +135,14 @@ export default function HomeScreen() {
         </LinearGradient>
       </MotiView>
 
-      {/* 💬 Prompt */}
+      {renderStories()}
+
       <MotiView
         from={{ opacity: 0, translateY: 10 }}
         animate={{ opacity: 1, translateY: 0 }}
         transition={{ type: "timing", duration: 500, delay: 200 }}
       >
-        <Pressable
-          style={styles.writeRow}
-          onPress={() => router.push("/compose")}
-        >
+        <Pressable style={styles.writeRow} onPress={() => router.push("/compose")}>
           <Ionicons name="create-outline" size={18} color="#B197FC" />
           <Text style={{ color: "#D1C4E9", marginLeft: 8 }}>
             What do you want to verify today?
@@ -133,41 +150,42 @@ export default function HomeScreen() {
         </Pressable>
       </MotiView>
 
-      {/* 🌐 Full-Width Browse Section */}
+      {/* 🌐 Browse Categories */}
       <Text style={styles.sectionTitle}>Browse Categories</Text>
-      <View style={styles.categoryContainer}>
-        {CATEGORIES.map((item, index) => {
+      <FlatList
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.categoryScroll}
+        data={CATEGORIES}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => {
           const isActive = activeCategory === item.id;
           return (
             <Pressable
-              key={item.id}
               onPress={() => handleCategoryPress(item.id)}
               onPressIn={() => setActiveCategory(item.id)}
               onPressOut={() => setActiveCategory(null)}
             >
               <MotiView
-                from={{ opacity: 0, scale: 0.9 }}
+                from={{ scale: 0.9, opacity: 0 }}
                 animate={{
+                  scale: isActive ? 1.08 : 1,
                   opacity: 1,
-                  scale: isActive ? 1.1 : 1,
-                  shadowOpacity: isActive ? 0.9 : 0.6,
+                  shadowOpacity: isActive ? 0.9 : 0.4,
                 }}
-                transition={{ type: "timing", duration: 200 }}
+                transition={{ type: "timing", duration: 250 }}
                 style={[
-                  styles.categoryBox,
-                  {
-                    backgroundColor: item.color,
-                    shadowColor: isActive ? "#D8B4FE" : "#8A2BE2",
-                  },
+                  styles.categoryPill,
+                  { backgroundColor: item.color, shadowColor: item.color },
                 ]}
               >
-                <Ionicons name={item.icon as any} size={28} color="white" />
-                <Text style={styles.categoryText}>{item.title}</Text>
+                <Ionicons name={item.icon as any} size={20} color="white" />
+                <Text style={styles.categoryLabel}>{item.title}</Text>
               </MotiView>
             </Pressable>
           );
-        })}
-      </View>
+        }}
+      />
 
       <Text style={[styles.sectionTitle, { marginTop: 24 }]}>
         Trending News & Community Posts
@@ -253,7 +271,6 @@ export default function HomeScreen() {
 
       <Chatbot />
 
-      {/* Drawer Menu */}
       <Modal
         visible={menuVisible}
         transparent
@@ -293,6 +310,30 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: "#B197FC",
   },
+  storiesContainer: {
+    flexDirection: "row",
+    paddingVertical: 10,
+    paddingHorizontal: 4,
+    marginBottom: 2,
+  },
+  storyItem: {
+    alignItems: "center",
+    marginRight: 14,
+    width: 64,
+  },
+  storyAvatar: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    borderWidth: 2,
+    borderColor: "#8A2BE2",
+  },
+  storyName: {
+    color: "#EAEAEA",
+    fontSize: 12,
+    marginTop: 4,
+    textAlign: "center",
+  },
   writeRow: {
     margin: 16,
     paddingHorizontal: 14,
@@ -317,31 +358,31 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginBottom: 10,
   },
-  categoryContainer: {
+
+  // 🌐 Updated Categories
+  categoryScroll: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+  },
+  categoryPill: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
-    marginHorizontal: 16,
-    marginTop: 10,
-  },
-  categoryBox: {
-    width: "48%",
-    height: 110,
-    borderRadius: 18,
-    justifyContent: "center",
     alignItems: "center",
-    marginBottom: 12,
-    shadowColor: "#8A2BE2",
-    shadowOpacity: 0.6,
-    shadowRadius: 10,
-    elevation: 10,
+    justifyContent: "center",
+    marginRight: 12,
+    borderRadius: 30,
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 6,
   },
-  categoryText: {
+  categoryLabel: {
     color: "white",
-    fontWeight: "700",
-    marginTop: 8,
+    fontWeight: "600",
+    marginLeft: 8,
     fontSize: 15,
   },
+
   postCard: {
     backgroundColor: "#1C1C2A",
     marginHorizontal: 16,

@@ -2,10 +2,19 @@ import { View, Text, Pressable, StyleSheet, ImageBackground, Animated } from "re
 import { useEffect, useRef, useState } from "react";
 import { router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
-
+import { useTranslation } from 'react-i18next';
+const languageMapping: { [key: string]: string} = {
+  "English": "en",
+  "French": "fr",
+  "German": "de",
+  "Spanish":"es", 
+  "Chinese":"zh",
+  "Hindi":"hi",
+};
 export default function Language() {
+  const {t, i18n }=useTranslation();
+  const [selected, setSelected]=useState(i18n.language);
   const languages = ["English", "French", "German", "Spanish", "Chinese", "Hindi"];
-  const [selected, setSelected] = useState<string | null>(null);
 
   // --- Flicker animation ---
   const flickerAnim = useRef(new Animated.Value(0)).current;
@@ -66,6 +75,15 @@ export default function Language() {
 
     return () => clearInterval(interval);
   }, []);
+// 5. This function now changes the app's language
+  const handleLanguageSelect = (langName: string) => {
+    const langCode = languageMapping[langName];
+    if (langCode) {
+      i18n.changeLanguage(langCode); // This is the key line!
+      setSelected(langCode);
+      router.push("/onboarding/signin");
+    }
+  };
 
   return (
     <ImageBackground
@@ -89,7 +107,7 @@ export default function Language() {
             key={i}
             style={styles.optionWrapper}
             onPress={() => {
-              setSelected(lang);
+              handleLanguageSelect(lang);
               router.push("/onboarding/signin");
             }}
           >
@@ -114,7 +132,7 @@ export default function Language() {
                 ]}
               />
               <View
-                style={[styles.circle, selected === lang && styles.circleSelected]}
+                style={[styles.circle, selected === languageMapping[lang] && styles.circleSelected]}
               />
               <Text style={styles.btnText}>{lang}</Text>
             </LinearGradient>

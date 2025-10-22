@@ -9,22 +9,24 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
+import { useTranslation } from 'react-i18next';
 
 export default function Permission2() {
+  const { t }=useTranslation();
+
   const privacyOptions = [
-    "Share anonymous insights to improve detection",
-    "Enable WhatsApp/Telegram integration",
+    "share_insights",
+   "enable_integration",
   ];
 
   const permissionOptions = [
-    "Notifications",
-    "Media access for image/video check",
-    "Contacts",
+    "notifications",
+    "media_access",
+    "contacts",
   ];
 
   const [selectedPrivacy, setSelectedPrivacy] = useState<string[]>([]);
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
-  const [isAllSelected, setIsAllSelected] = useState(false);
 
   const toggleOption = (option: string, type: "privacy" | "permission") => {
     if (type === "privacy") {
@@ -43,15 +45,13 @@ export default function Permission2() {
   };
 
   const toggleAllowAll = () => {
-    if (isAllSelected) {
+    if (selectedPermissions.length === permissionOptions.length) {
       setSelectedPermissions([]);
-      setIsAllSelected(false);
     } else {
       setSelectedPermissions(permissionOptions);
-      setIsAllSelected(true);
     }
   };
-
+  const isAllSelected = selectedPermissions.length === permissionOptions.length;
   return (
     <ImageBackground
       source={require("../../assets/bg1.jpg")}
@@ -59,37 +59,36 @@ export default function Permission2() {
       resizeMode="cover"
     >
       <View style={styles.overlay}>
-        <Text style={styles.title}>Privacy & Permissions</Text>
+        <Text style={styles.title}>{t('permissions_privacy_title')}</Text>
 
         {/* Privacy Section */}
-        <Text style={styles.sectionTitle}>Privacy</Text>
-        {privacyOptions.map((p, i) => (
+        {privacyOptions.map((pkey, i) => (
           <Pressable
             key={i}
             style={styles.optionRow}
-            onPress={() => toggleOption(p, "privacy")}
+            onPress={() => toggleOption(pkey, "privacy")}
           >
             <Ionicons
-              name={selectedPrivacy.includes(p) ? "checkbox" : "square-outline"}
+              name={selectedPrivacy.includes(pkey) ? "checkbox" : "square-outline"}
               size={22}
               color="#B794F4"
               style={{ marginRight: 10 }}
             />
-            <Text style={styles.optionText}>{p}</Text>
+            <Text style={styles.optionText}>{t(`privacy_${pkey}`)}</Text>
           </Pressable>
         ))}
 
         {/* Permissions Section */}
-        <Text style={[styles.sectionTitle, { marginTop: 25 }]}>Permissions</Text>
-        {permissionOptions.map((p, i) => (
+        <Text style={[styles.sectionTitle, { marginTop: 25 }]}>{t('permissions_permissions_title')}</Text>
+        {permissionOptions.map((pkey, i) => (
           <Pressable
             key={i}
             style={styles.optionRow}
-            onPress={() => toggleOption(p, "permission")}
+            onPress={() => toggleOption(pkey, "permission")}
           >
             <Ionicons
               name={
-                selectedPermissions.includes(p)
+                selectedPermissions.includes(pkey)
                   ? "checkbox"
                   : "square-outline"
               }
@@ -97,7 +96,7 @@ export default function Permission2() {
               color="#B794F4"
               style={{ marginRight: 10 }}
             />
-            <Text style={styles.optionText}>{p}</Text>
+            <Text style={styles.optionText}>{t(`permission_${pkey}`)}</Text>
           </Pressable>
         ))}
 
@@ -110,7 +109,7 @@ export default function Permission2() {
             style={{ marginRight: 10 }}
           />
           <Text style={[styles.optionText, { fontWeight: "600" }]}>
-            Allow All
+            {t('permissions_allow_all')}
           </Text>
         </Pressable>
 
@@ -122,7 +121,7 @@ export default function Permission2() {
             end={{ x: 1, y: 1 }}
             style={styles.gradientBtn}
           >
-            <Text style={styles.btnText}>Save & Continue</Text>
+            <Text style={styles.btnText}>{t('profile1_save_button')}</Text>
           </LinearGradient>
         </Pressable>
       </View>
@@ -182,4 +181,4 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     letterSpacing: 0.5,
   },
-});
+}); 

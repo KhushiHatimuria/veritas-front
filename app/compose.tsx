@@ -13,8 +13,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
-// Import the axios client
-import apiClient from "../api/api"; // ✅ Adjust path if needed
+import apiClient from "../api/apiClient"; // ✅ Adjust path if needed
 
 export default function ComposeScreen() {
   const [text, setText] = useState("");
@@ -23,6 +22,7 @@ export default function ComposeScreen() {
   const [audioUri, setAudioUri] = useState<string | null>(null);
   const [linkPreview, setLinkPreview] = useState<string | null>(null);
 
+  // 📸 Pick Image
   const handlePickPhoto = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -35,6 +35,7 @@ export default function ComposeScreen() {
     }
   };
 
+  // 🎵 Pick Audio
   const handlePickAudio = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
@@ -52,6 +53,7 @@ export default function ComposeScreen() {
     }
   };
 
+  // 🔗 Add Link Preview
   const handleAddLink = () => {
     if (!text.includes("http")) {
       Alert.alert("No link found", "Paste a link into your post first.");
@@ -62,48 +64,104 @@ export default function ComposeScreen() {
     if (found) setLinkPreview(found);
   };
 
-  // ✅ Modified handlePost to match backend endpoints
-  const handlePost = async () => {
-    if (!text.trim() && !mediaUri && !audioUri) return;
+  // 🧠 Fact Check Button Handler
+  const handleFactCheck = async () => {
+    if (!text.trim()) {
+      Alert.alert("Missing Text", "Please enter some text to fact-check.");
+      return;
+    }
 
+    try {
+      setLoading(true);
+      const result = await apiClient
+        .post("/api/v1/misinfo", { text })
+        .then((r) => r.data);
+
+      router.push({
+        pathname: "/onboarding/ResultScreen",
+        params: { type: "factcheck", result: JSON.stringify(result) },
+      });
+    } catch (error) {
+      Alert.alert("❌ Error", "Could not connect to backend. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 🪄 Main Post/Verify Button
+  const handlePost = async (): Promise<void> => {
+    if (!text.trim() && !mediaUri && !audioUri) return;
     setLoading(true);
 
     try {
-      let response;
+      const lowerText = text.toLowerCase();
 
-      if (mediaUri) {
-        // 📸 Send image to detect/image endpoint
-        const formData = new FormData();
-        formData.append("image", {
+      const wantsSummary =
+        lowerText.includes("summarise") || lowerText.includes("summarize");
+      const wantsMisinformation =
+        lowerText.includes("misinfo") ||
+        lowerText.includes("fake") ||
+        lowerText.includes("fact check") ||
+        lowerText.includes("verify");
+      const wantsSentiment =
+        lowerText.includes("sentiment") ||
+        lowerText.includes("emotion") ||
+        lowerText.includes("positive") ||
+        lowerText.includes("negative");
+
+      let result: any = null;
+      let resultType = "";
+
+      if (wantsSummary) {
+        resultType = "summarise";
+        result = await apiClient.post("/api/v1/summarise", { text }).then((r) => r.data);
+      } else if (wantsMisinformation) {
+        resultType = "misinfo";
+        result = await apiClient.post("/api/v1/misinfo", { text }).then((r) => r.data);
+      } else if (wantsSentiment) {
+        resultType = "sentiment";
+        result = await apiClient.post("/api/v1/sentiment", { text }).then((r) => r.data);
+      } else if (mediaUri) {
+        resultType = "detect_image";
+        const imageData = new FormData();
+        imageData.append("image", {
           uri: mediaUri,
           name: "photo.jpg",
           type: "image/jpeg",
         } as any);
-
-        response = await apiClient.post("/api/v1/detect/image", formData, {
-          headers: { "Content-Type": "multipart/form-data" },
-        });
-
-      } else if (text.trim()) {
-        // 🧠 Send text to misinfo endpoint
-        response = await apiClient.post("/api/v1/misinfo", { text });
+        result = await apiClient
+          .post("/api/v1/detect/image", imageData, {
+            headers: { "Content-Type": "multipart/form-data" },
+          })
+          .then((r) => r.data);
+      } else if (audioUri) {
+        resultType = "detect_audio";
+        const audioData = new FormData();
+        audioData.append("audio", {
+          uri: audioUri,
+          name: "audio.m4a",
+          type: "audio/m4a",
+        } as any);
+        result = await apiClient
+          .post("/api/v1/detect/audio", audioData, {
+            headers: { "Content-Type": "multipart/form-data" },
+          })
+          .then((r) => r.data);
       } else {
-        Alert.alert("No content", "Please add text or image to verify.");
+        Alert.alert("No specific intent detected", "Please mention what you want me to do.");
+        setLoading(false);
         return;
       }
 
-      console.log("✅ Backend response:", response.data);
-      Alert.alert("✅ Success", "Verification completed successfully!");
+      router.push({
+        pathname: "/onboarding/ResultScreen",
+        params: { type: resultType, result: JSON.stringify(result) },
+      });
 
-      // Reset state and go back
       setText("");
       setMediaUri(null);
       setAudioUri(null);
-      setLinkPreview(null);
-      router.back();
-
     } catch (error) {
-      console.error("❌ Failed to verify:", error);
       Alert.alert("❌ Error", "Could not connect to backend. Please try again.");
     } finally {
       setLoading(false);
@@ -183,6 +241,12 @@ export default function ComposeScreen() {
           <Text style={styles.chipText}> Audio</Text>
         </Pressable>
 
+        {/* 🧠 Added Fact Check Button */}
+        <Pressable style={styles.chip} onPress={handleFactCheck}>
+          <Ionicons name="search-outline" size={18} color="#A78BFA" />
+          <Text style={styles.chipText}> Fact Check</Text>
+        </Pressable>
+
         <Pressable style={styles.chip} onPress={handleAddLink}>
           <Ionicons name="link-outline" size={18} color="#A78BFA" />
           <Text style={styles.chipText}> Link</Text>
@@ -195,7 +259,7 @@ export default function ComposeScreen() {
           styles.postBtn,
           { opacity: text || mediaUri || audioUri ? 1 : 0.5 },
         ]}
-        disabled={!text && !mediaUri && !audioUri || loading}
+        disabled={(!text && !mediaUri && !audioUri) || loading}
         onPress={handlePost}
       >
         {loading ? (
@@ -276,7 +340,7 @@ const styles = StyleSheet.create({
     borderColor: "#374151",
     gap: 8,
   },
-  row: { flexDirection: "row", gap: 12, paddingHorizontal: 16 },
+  row: { flexDirection: "row", gap: 12, paddingHorizontal: 16, flexWrap: "wrap" },
   chip: {
     flexDirection: "row",
     alignItems: "center",

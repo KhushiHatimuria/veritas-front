@@ -9,13 +9,16 @@ import {
   Alert,
   ImageBackground,
   Animated,
+  ActivityIndicator,
 } from "react-native";
-import { router } from "expo-router";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { router, useLocalSearchParams } from "expo-router";
+import apiClient from "../../api/apiClient"; // Make sure this path is correct
 
 export default function ResetPassword() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const { email } = useLocalSearchParams();
 
   const glowAnim = useRef(new Animated.Value(0.8)).current;
 
@@ -37,28 +40,27 @@ export default function ResetPassword() {
   }, []);
 
   const handleSave = async () => {
-    if (!password || !confirmPassword) {
-      Alert.alert("Error", "Please fill in both fields.");
+    if (!password || password !== confirmPassword) {
+      Alert.alert("Error", "Passwords do not match or are empty.");
       return;
     }
-    if (password !== confirmPassword) {
-      Alert.alert("Error", "Passwords do not match. Try again.");
-      return;
-    }
-
+    setIsLoading(true);
     try {
-      await AsyncStorage.setItem("userPassword", password);
+      await apiClient.post("/reset-password", { email, newPassword: password });
       Alert.alert("Success", "Password updated successfully!", [
         { text: "OK", onPress: () => router.push("/onboarding/signin") },
       ]);
-    } catch (error) {
-      Alert.alert("Error", "Failed to save password. Please try again.");
+    } catch (error: any) {
+      const message = error.response?.data?.message || "Failed to update password.";
+      Alert.alert("Error", message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
     <ImageBackground
-      source={require("../../assets/bg1.jpg")} // ✅ dark sci-fi background
+      source={require("../../assets/bg1.jpg")}
       style={styles.background}
       resizeMode="cover"
     >
@@ -105,8 +107,16 @@ export default function ResetPassword() {
         <Animated.View
           style={[styles.glowButtonWrapper, { opacity: glowAnim }]}
         >
-          <Pressable style={styles.btn} onPress={handleSave}>
-            <Text style={styles.btnText}>Save</Text>
+          <Pressable
+            style={styles.btn}
+            onPress={handleSave}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <ActivityIndicator color="white" />
+            ) : (
+              <Text style={styles.btnText}>Save</Text>
+            )}
           </Pressable>
         </Animated.View>
       </View>
@@ -178,6 +188,8 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: "center",
+    justifyContent: 'center',
+    minHeight: 50, // Ensures button height is consistent
   },
   btnText: {
     color: "#fff",

@@ -9,11 +9,15 @@ import {
   ImageBackground,
   Animated,
   Easing,
+  Alert,
+  ActivityIndicator,
 } from "react-native";
 import { router } from "expo-router";
+import apiClient from "../../api/apiClient"; // Make sure this path is correct
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   // --- Sci-Fi Fade-In Animation ---
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -35,9 +39,30 @@ export default function ForgotPassword() {
     ]).start();
   }, []);
 
+  const handleSend = async () => {
+    if (!email) {
+      Alert.alert("Error", "Please enter your email address.");
+      return;
+    }
+    setIsLoading(true);
+    try {
+      await apiClient.post("/forgot-password", { email });
+      Alert.alert("Check Your Email",`An OTP has been sent to ${email}.`);
+      router.push({
+        pathname: "/onboarding/verify-email",
+        params: { email: email },
+      });
+    } catch (error: any) {
+      const message = error.response?.data?.message || "Could not send OTP. Please try again.";
+      Alert.alert("Error", message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+ 
   return (
     <ImageBackground
-      source={require("../../assets/bg1.jpg")} // ✅ Use bg1
+      source={require("../../assets/bg1.jpg")}
       style={styles.background}
       resizeMode="cover"
     >
@@ -86,9 +111,14 @@ export default function ForgotPassword() {
           {/* Send Button */}
           <Pressable
             style={styles.btn}
-            onPress={() => router.push("/onboarding/verify-email")}
+            onPress={handleSend}
+            disabled={isLoading}
           >
-            <Text style={styles.btnText}>Send</Text>
+            {isLoading ? (
+              <ActivityIndicator color="white" />
+            ) : (
+              <Text style={styles.btnText}>Send</Text>
+            )}
           </Pressable>
         </Animated.View>
       </View>
@@ -103,7 +133,7 @@ const styles = StyleSheet.create({
   },
   overlay: {
     flex: 1,
-    backgroundColor: "rgba(10, 10, 25, 0.8)", // 🖤 Deep sci-fi overlay
+    backgroundColor: "rgba(10, 10, 25, 0.8)",
     justifyContent: "center",
     alignItems: "center",
     padding: 20,
@@ -113,6 +143,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(20, 20, 40, 0.9)",
     borderRadius: 16,
     padding: 24,
+    alignItems: 'center', // Added for better centering of elements
     shadowColor: "#a855f7",
     shadowOpacity: 0.4,
     shadowRadius: 15,
@@ -121,7 +152,6 @@ const styles = StyleSheet.create({
   icon: {
     width: 80,
     height: 80,
-    alignSelf: "center",
     marginBottom: 20,
   },
   title: {
@@ -129,7 +159,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     marginBottom: 10,
     textAlign: "center",
-    color: "#c084fc", // neon lavender
+    color: "#c084fc",
     textShadowColor: "#a855f7",
     textShadowRadius: 10,
   },
@@ -140,6 +170,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   input: {
+    width: '100%', // Ensure input takes full width of card
     borderWidth: 1.5,
     borderColor: "#a855f7",
     borderRadius: 10,
@@ -157,6 +188,7 @@ const styles = StyleSheet.create({
     textShadowRadius: 8,
   },
   btn: {
+    width: '100%', // Ensure button takes full width of card
     backgroundColor: "#a855f7",
     padding: 14,
     borderRadius: 10,
@@ -164,6 +196,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.6,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 0 },
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   btnText: {
     textAlign: "center",

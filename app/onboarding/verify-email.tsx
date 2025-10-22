@@ -9,11 +9,17 @@ import {
   Image,
   ImageBackground,
   Animated,
+  ActivityIndicator,
 } from "react-native";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
+import apiClient from "../../api/apiClient"; // Make sure this path is correct
 
 export default function VerifyEmail() {
   const [code, setCode] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [isResending, setIsResending] = useState(false);
+  const { email } = useLocalSearchParams();
+
   const glowAnim = useRef(new Animated.Value(0.8)).current;
 
   useEffect(() => {
@@ -33,27 +39,46 @@ export default function VerifyEmail() {
     ).start();
   }, []);
 
-  const handleVerify = () => {
-    if (code === "1234") {
-      router.push("/onboarding/reset-password");
-    } else {
-      Alert.alert("Invalid Code", "The code you entered is incorrect. Please try again.");
+  const handleVerify = async () => {
+    if (code.length < 4) {
+        Alert.alert("Error", "Please enter the 4-digit code.");
+        return;
+    }
+    setIsLoading(true);
+    try {
+      await apiClient.post("/verify-otp", { email, otp: code });
+      router.push({
+        pathname: "/onboarding/reset-password",
+        params: { email: email },
+      });
+    } catch (error: any) {
+      const message = error.response?.data?.message || "Invalid or expired code.";
+      Alert.alert("Error", message);
       setCode("");
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleResend = () => {
-    Alert.alert("Code Resent", "A new verification code has been sent to your email.");
+  const handleResend = async () => {
+    setIsResending(true);
+    try {
+        await apiClient.post('/forgot-password', { email });
+        Alert.alert("Code Resent", "A new verification code has been sent to your email.");
+    } catch (error) {
+        Alert.alert("Error", "Could not resend the code. Please try again later.");
+    } finally {
+        setIsResending(false);
+    }
   };
 
   return (
     <ImageBackground
-      source={require("../../assets/bg1.jpg")} // ✅ dark sci-fi background
+      source={require("../../assets/bg1.jpg")}
       style={styles.background}
       resizeMode="cover"
     >
       <View style={styles.overlay}>
-        {/* Animated Icon Glow */}
         <Animated.View
           style={[
             styles.iconContainer,
@@ -71,7 +96,6 @@ export default function VerifyEmail() {
           Please enter the 4-digit code sent to your email.
         </Text>
 
-        {/* OTP Input */}
         <TextInput
           style={styles.input}
           placeholder="----"
@@ -82,20 +106,26 @@ export default function VerifyEmail() {
           onChangeText={setCode}
         />
 
-        {/* Resend */}
-        <Pressable onPress={handleResend}>
-          <Text style={styles.resend}>Resend Code</Text>
+        <Pressable onPress={handleResend} disabled={isResending}>
+          <Text style={styles.resend}>{isResending ? "Sending..." : "Resend Code"}</Text>
         </Pressable>
 
-        {/* Verify Button with Glow */}
         <Animated.View
           style={[
             styles.glowButtonWrapper,
             { opacity: glowAnim },
           ]}
         >
-          <Pressable style={styles.btn} onPress={handleVerify}>
-            <Text style={styles.btnText}>Verify</Text>
+          <Pressable
+            style={styles.btn}
+            onPress={handleVerify}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+                <ActivityIndicator color="white" />
+            ) : (
+                <Text style={styles.btnText}>Verify</Text>
+            )}
           </Pressable>
         </Animated.View>
       </View>
@@ -172,6 +202,8 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: "center",
+    justifyContent: 'center',
+    minHeight: 50, // Ensures consistent button height
   },
   btnText: {
     color: "#fff",
