@@ -421,7 +421,7 @@ def detect_image():
 
         img = Image.open(image_file.stream).convert("RGB")
         img = img.resize((256, 256))
-        image_array = np.array(img, dtype=np.float32)
+        image_array = np.array(img, dtype=np.float32) / 255.0  # Normalize to 0-1 to match notebook's rescale=1./255.
 
         image_service_url = "http://127.0.0.1:5002/predict/image"
         response = requests.post(image_service_url, json={"input": image_array.tolist()})
@@ -555,7 +555,5 @@ def verify_news():
 #-----------------------------------------------------------------------------------------------------------
 # ---- Run app ----
 if __name__ == "__main__":
-    models = genai.list_models()
-    for m in models:
-        print(m.name, m.supported_generation_methods)
-    app.run(host='0.0.0.0', port=8080, debug=True)
+    print("🚀 Starting Veritas backend server on port 5000...")
+    app.run(host='0.0.0.0', port=5000, debug=True)

@@ -8,7 +8,7 @@ type AuthState = {
     logout: () => void;
 };
 // Use your local backend IP address and port here:
-const baseURL = "http:///10.208.161.115:8080";
+const baseURL = "http://192.168.1.3:5000";
 
 // Create axios instance
 const apiClient = axios.create({

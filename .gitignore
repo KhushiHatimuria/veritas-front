@@ -32,19 +32,31 @@ yarn-error.*
 
 # local env files
 .env*.local
+.env
 
 # typescript
 *.tsbuildinfo
 
-# Archives / Backups
-*.tar
-*.zip
+# Virtual environments
+.venv/
+venv/
+image_env/
+audio_env/
+tf_env/
 
-# Other build outputs
+# Database
+*.db
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Archives / Backups
+*.zip
+*.tar
+
+# Build outputs
 build/
 out/
 .next/
-"backend/models/features.pkl" 
-"backend/models/features.pkl" 
-backend/
-.env
