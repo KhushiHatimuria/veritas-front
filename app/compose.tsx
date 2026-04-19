@@ -13,16 +13,22 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
-import apiClient from "../api/apiClient"; // ✅ Adjust path if needed
+import apiClient from "../api/apiClient";
+
+type AudioFile = {
+  uri: string;
+  name: string;
+  mimeType?: string;
+};
 
 export default function ComposeScreen() {
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
   const [mediaUri, setMediaUri] = useState<string | null>(null);
-  const [audioUri, setAudioUri] = useState<string | null>(null);
+  const [audioFile, setAudioFile] = useState<AudioFile | null>(null);
   const [linkPreview, setLinkPreview] = useState<string | null>(null);
 
-  // 📸 Pick Image
+  // Pick Image
   const handlePickPhoto = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -31,20 +37,25 @@ export default function ComposeScreen() {
     });
     if (!result.canceled && result.assets.length > 0) {
       setMediaUri(result.assets[0].uri);
-      setAudioUri(null);
+      setAudioFile(null);
     }
   };
 
-  // 🎵 Pick Audio
+  // Pick Audio
   const handlePickAudio = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
         type: "audio/*",
         copyToCacheDirectory: true,
       });
+      console.log("Document Picker Result:", JSON.stringify(result, null, 2));
       if (!result.canceled) {
-        const file = result.assets[0];
-        setAudioUri(file.uri);
+        const fileAsset = result.assets[0];
+        setAudioFile({
+          uri: fileAsset.uri,
+          name: fileAsset.name,
+          mimeType: fileAsset.mimeType,
+        });
         setMediaUri(null);
       }
     } catch (error) {
@@ -53,7 +64,7 @@ export default function ComposeScreen() {
     }
   };
 
-  // 🔗 Add Link Preview
+  // Add Link Preview
   const handleAddLink = () => {
     if (!text.includes("http")) {
       Alert.alert("No link found", "Paste a link into your post first.");
@@ -64,38 +75,69 @@ export default function ComposeScreen() {
     if (found) setLinkPreview(found);
   };
 
-  // 🧠 Fact Check Button Handler
-  const handleFactCheck = async () => {
-    if (!text.trim()) {
-      Alert.alert("Missing Text", "Please enter some text to fact-check.");
-      return;
-    }
+  // Fact Check Button Handler---------------------------
 
-    try {
-      setLoading(true);
-      const result = await apiClient
-        .post("/api/v1/misinfo", { text })
-        .then((r) => r.data);
 
-      router.push({
-        pathname: "/onboarding/ResultScreen",
-        params: { type: "factcheck", result: JSON.stringify(result) },
-      });
-    } catch (error) {
-      Alert.alert("❌ Error", "Could not connect to backend. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Fact Check Button Handler — ONLY TEXT + IMAGE
+const handleFactCheck = async () => {
+  if (!text.trim() && !mediaUri) {
+    Alert.alert(
+      "Missing Input",
+      "Please enter a headline or upload an image to fact-check."
+    );
+    return;
+  }
 
-  // 🪄 Main Post/Verify Button
-  const handlePost = async (): Promise<void> => {
-    if (!text.trim() && !mediaUri && !audioUri) return;
+  try {
     setLoading(true);
 
+    const formData = new FormData();
+
+    // Add text (optional)
+    formData.append("claim", text || "");
+
+    // Add image (optional)
+    if (mediaUri) {
+      formData.append("image", {
+        uri: mediaUri,
+        name: "photo.jpg",
+        type: "image/jpeg",
+      } as any);
+    }
+
+    const result = await apiClient
+      .post("/verify", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      })
+      .then((r) => r.data);
+
+    router.push({
+      pathname: "/onboarding/ResultScreen",
+      params: { type: "factcheck", result: JSON.stringify(result) },
+    });
+
+  } catch (error) {
+    console.log("Fact check error:", error);
+    Alert.alert("❌ Error", "Could not connect to backend. Please try again.");
+  } finally {
+    setLoading(false);
+  }
+};
+
+
+
+//----------------------------------------------------
+
+
+
+  // Main Post/Verify Button-------------------------
+
+
+  const handlePost = async (): Promise<void> => {
+    if (!text.trim() && !mediaUri && !audioFile) return;
+    setLoading(true);
     try {
       const lowerText = text.toLowerCase();
-
       const wantsSummary =
         lowerText.includes("summarise") || lowerText.includes("summarize");
       const wantsMisinformation =
@@ -114,13 +156,19 @@ export default function ComposeScreen() {
 
       if (wantsSummary) {
         resultType = "summarise";
-        result = await apiClient.post("/api/v1/summarise", { text }).then((r) => r.data);
+        result = await apiClient
+          .post("/api/v1/summarise", { text })
+          .then((r) => r.data);
       } else if (wantsMisinformation) {
         resultType = "misinfo";
-        result = await apiClient.post("/api/v1/misinfo", { text }).then((r) => r.data);
+        result = await apiClient
+          .post("/api/v1/misinfo", { text })
+          .then((r) => r.data);
       } else if (wantsSentiment) {
         resultType = "sentiment";
-        result = await apiClient.post("/api/v1/sentiment", { text }).then((r) => r.data);
+        result = await apiClient
+          .post("/api/v1/sentiment", { text })
+          .then((r) => r.data);
       } else if (mediaUri) {
         resultType = "detect_image";
         const imageData = new FormData();
@@ -134,13 +182,14 @@ export default function ComposeScreen() {
             headers: { "Content-Type": "multipart/form-data" },
           })
           .then((r) => r.data);
-      } else if (audioUri) {
+      } else if (audioFile) {
         resultType = "detect_audio";
         const audioData = new FormData();
-        audioData.append("audio", {
-          uri: audioUri,
-          name: "audio.m4a",
-          type: "audio/m4a",
+        // ✅ THIS IS THE FIX
+        audioData.append("file", {
+          uri: audioFile.uri,
+          name: audioFile.name,
+          type: audioFile.mimeType || "audio/*",
         } as any);
         result = await apiClient
           .post("/api/v1/detect/audio", audioData, {
@@ -148,9 +197,11 @@ export default function ComposeScreen() {
           })
           .then((r) => r.data);
       } else {
-        Alert.alert("No specific intent detected", "Please mention what you want me to do.");
         setLoading(false);
-        return;
+        return Alert.alert(
+          "No specific intent detected",
+          "Please mention what you want to do."
+        );
       }
 
       router.push({
@@ -160,8 +211,9 @@ export default function ComposeScreen() {
 
       setText("");
       setMediaUri(null);
-      setAudioUri(null);
+      setAudioFile(null);
     } catch (error) {
+      console.error("Post Error:", error);
       Alert.alert("❌ Error", "Could not connect to backend. Please try again.");
     } finally {
       setLoading(false);
@@ -197,20 +249,27 @@ export default function ComposeScreen() {
       {mediaUri && (
         <View style={styles.attachment}>
           <Image source={{ uri: mediaUri }} style={styles.preview} />
-          <Pressable style={styles.removeBtn} onPress={() => setMediaUri(null)}>
+          <Pressable
+            style={styles.removeBtn}
+            onPress={() => setMediaUri(null)}
+          >
             <Ionicons name="close-circle" size={22} color="#F87171" />
           </Pressable>
         </View>
       )}
 
       {/* Audio Preview */}
-      {audioUri && (
+      {audioFile && (
         <View style={styles.audioCard}>
-          <Ionicons name="musical-notes-outline" size={22} color="#A78BFA" />
+          <Ionicons
+            name="musical-notes-outline"
+            size={22}
+            color="#A78BFA"
+          />
           <Text style={{ flex: 1, color: "#E5E7EB" }} numberOfLines={1}>
-            {audioUri.split("/").pop()}
+            {audioFile.name}
           </Text>
-          <Pressable onPress={() => setAudioUri(null)}>
+          <Pressable onPress={() => setAudioFile(null)}>
             <Ionicons name="close" size={20} color="#F87171" />
           </Pressable>
         </View>
@@ -237,11 +296,14 @@ export default function ComposeScreen() {
         </Pressable>
 
         <Pressable style={styles.chip} onPress={handlePickAudio}>
-          <Ionicons name="musical-notes-outline" size={18} color="#A78BFA" />
+          <Ionicons
+            name="musical-notes-outline"
+            size={18}
+            color="#A78BFA"
+          />
           <Text style={styles.chipText}> Audio</Text>
         </Pressable>
 
-        {/* 🧠 Added Fact Check Button */}
         <Pressable style={styles.chip} onPress={handleFactCheck}>
           <Ionicons name="search-outline" size={18} color="#A78BFA" />
           <Text style={styles.chipText}> Fact Check</Text>
@@ -257,9 +319,9 @@ export default function ComposeScreen() {
       <Pressable
         style={[
           styles.postBtn,
-          { opacity: text || mediaUri || audioUri ? 1 : 0.5 },
+          { opacity: text || mediaUri || audioFile ? 1 : 0.5 },
         ]}
-        disabled={(!text && !mediaUri && !audioUri) || loading}
+        disabled={(!text && !mediaUri && !audioFile) || loading}
         onPress={handlePost}
       >
         {loading ? (

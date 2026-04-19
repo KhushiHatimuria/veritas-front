@@ -10,20 +10,82 @@ export default function ResultScreen() {
   const cleanText = (text: string) => {
     if (!text) return "";
     return text
-      .replace(/\\n/g, " ") // remove \n
-      .replace(/\n/g, " ") // handle real line breaks
-      .replace(/\\/g, "") // remove markdown stars
-      .replace(/\s+/g, " ") // normalize spacing
+      .replace(/\\n/g, "\n") // convert \n to actual line breaks
+      .replace(/\*\*/g, "") // remove markdown bold
+      .replace(/\*/g, "") // remove markdown stars
+      .replace(/\s{3,}/g, "\n\n") // normalize excessive spacing
       .trim();
   };
 
-  const info: Record<string, { title: string; color: string; emoji: string }> = {
-    summarise: { title: "Summary", color: "#8B5CF6", emoji: "🧠" },
-    misinfo: { title: "Misinformation Check", color: "#F59E0B", emoji: "⚠" },
-    sentiment: { title: "Sentiment Analysis", color: "#10B981", emoji: "💬" },
-    detect_image: { title: "Image Detection", color: "#3B82F6", emoji: "🖼" },
-    detect_audio: { title: "Audio Detection", color: "#EC4899", emoji: "🎧" },
+  // Format JSON object into readable text
+  const formatJsonToText = (data: any): string => {
+    if (typeof data === "string") {
+      return cleanText(data);
+    }
+
+    if (typeof data === "object" && data !== null) {
+      let formatted = "";
+
+      // Handle different response structures
+      if (data.summary) {
+        formatted += cleanText(data.summary);
+      } else if (data.result) {
+        formatted += cleanText(data.result);
+      } else if (data.analysis) {
+        formatted += cleanText(data.analysis);
+      } else if (data.verdict) {
+        formatted += `Verdict: ${data.verdict}\n\n`;
+        if (data.explanation) {
+          formatted += cleanText(data.explanation);
+        }
+      } else if (data.sentiment) {
+        formatted += `Sentiment: ${data.sentiment}\n\n`;
+        if (data.confidence) {
+          formatted += `Confidence: ${data.confidence}\n\n`;
+        }
+        if (data.explanation) {
+          formatted += cleanText(data.explanation);
+        }
+      } else if (data.detected) {
+        formatted += `Detection: ${data.detected ? "Yes" : "No"}\n\n`;
+        if (data.details) {
+          formatted += cleanText(data.details);
+        }
+      } else if (data.is_misinformation !== undefined) {
+        formatted += `Misinformation: ${
+          data.is_misinformation ? "Yes" : "No"
+        }\n\n`;
+        if (data.reasoning) {
+          formatted += "Reasoning:\n" + cleanText(data.reasoning);
+        }
+      } else {
+        // Fallback: convert object to formatted text
+        Object.entries(data).forEach(([key, value]) => {
+          const formattedKey = key
+            .replace(/_/g, " ")
+            .replace(/\b\w/g, (l) => l.toUpperCase());
+          if (typeof value === "string") {
+            formatted += `${formattedKey}:\n${cleanText(value)}\n\n`;
+          } else {
+            formatted += `${formattedKey}: ${value}\n\n`;
+          }
+        });
+      }
+
+      return formatted.trim() || "No readable content found.";
+    }
+
+    return "No result found.";
   };
+
+  const info: Record<string, { title: string; color: string; emoji: string }> =
+    {
+      summarise: { title: "Summary", color: "#8B5CF6", emoji: "🧠" },
+      misinfo: { title: "Misinformation Check", color: "#F59E0B", emoji: "⚠️" },
+      sentiment: { title: "Sentiment Analysis", color: "#10B981", emoji: "💬" },
+      detect_image: { title: "Image Detection", color: "#3B82F6", emoji: "🖼️" },
+      detect_audio: { title: "Audio Detection", color: "#EC4899", emoji: "🎧" },
+    };
 
   const selected = info[type as string] || {
     title: "Result",
@@ -31,10 +93,8 @@ export default function ResultScreen() {
     emoji: "✨",
   };
 
-  // Extract readable content
-  const displayText = parsed
-    ? cleanText(typeof parsed === "string" ? parsed : JSON.stringify(parsed))
-    : "No result found.";
+  // Format the parsed JSON into readable text
+  const displayText = formatJsonToText(parsed);
 
   return (
     <ScrollView style={styles.container}>

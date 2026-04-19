@@ -1,235 +1,237 @@
-from flask import Flask, jsonify, request
+import os
+from flask import Flask, request, jsonify
 import requests
-from difflib import SequenceMatcher
-from sentence_transformers import SentenceTransformer, util
-from transformers import pipeline
-
-# Initialize summarizer model
-summarizer = pipeline("summarization", model="facebook/bart-large-cnn")
-
-def generate_ai_summary(claim, articles):
-    """
-    Uses Hugging Face summarizer to generate a meaningful explanation of the claim
-    based on the top articles or context.
-    """
-    if articles:
-        combined_text = " ".join([a["title"] + ". " + (a.get("description") or "") for a in articles[:3]])
-        summary = summarizer(combined_text, max_length=120, min_length=30, do_sample=False)[0]['summary_text']
-        return f"AI Summary: {summary}"
-    else:
-        ai_commentary = summarizer(
-            f"Explain briefly why this claim might lack evidence: {claim}",
-            max_length=80,
-            min_length=20,
-            do_sample=False
-        )[0]['summary_text']
-        return f"No supporting sources found. {ai_commentary}"
+from dotenv import load_dotenv
+import google.generativeai as genai
+from services.textv import load_text_keys
 
 
-# ------------------------
-# 🔑 API KEYS (Free APIs only)
-# ------------------------
-NEWSAPI_KEY = "f4a6fa53aece46e68b7f91eea9a4d205"
-GNEWS_KEY = "f2fc361505e5cc369f51db4763cf9487"
-MEDIASTACK_KEY = "cb41be60ecde86326dfe8e02e841ca41"
+# Load environment variables
+load_dotenv()
 
-# ------------------------
-# Initialize Flask + model
-# ------------------------
+# -----------------------------
+# LOAD NEWS API KEYS
+# -----------------------------
+NEWS_API_KEY = os.getenv("NEWS_API_KEY")
+GNEWS_API_KEY = os.getenv("GNEWS_API_KEY")
+MEDIASTACK_API_KEY = os.getenv("MEDIASTACK_API_KEY")
+MGOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+
+# PASS KEYS INTO textv.py  🔥🔥🔥  (THIS WAS MISSING)
+load_text_keys(
+    NEWS_API_KEY,
+    GNEWS_API_KEY,
+    MEDIASTACK_API_KEY
+)
+
+# -----------------------------
+# GOOGLE GEMINI CONFIG
+# -----------------------------
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+if GOOGLE_API_KEY:
+    genai.configure(api_key=GOOGLE_API_KEY)
+else:
+    print("WARNING: Missing GOOGLE_API_KEY in .env")
+
+
 app = Flask(__name__)
-model = SentenceTransformer('all-MiniLM-L6-v2')
 
-# ------------------------
-# 📰 API Integrations (Free)
-# ------------------------
-def fetch_news_newsapi(query):
-    url = "https://newsapi.org/v2/everything"
-    params = {"q": query, "language": "en", "apiKey": NEWSAPI_KEY}
+# ======================================================================================
+# 1) GOOGLE GEMINI SUMMARIZER
+# ======================================================================================
+def summarize_with_gemini(text):
+    """Summarize text using Google Gemini."""
     try:
-        resp = requests.get(url, params=params, timeout=10).json()
-        articles = resp.get("articles", [])
-        return [
-            {"source": "NewsAPI", "title": a["title"], "description": a.get("description"), "url": a.get("url")}
-            for a in articles
-        ]
+        if not GOOGLE_API_KEY:
+            return "Gemini key missing. Summary unavailable."
+
+        model = genai.GenerativeModel("gemini-1.5-flash")
+        response = model.generate_content(
+            f"Summarize this clearly and objectively:\n\n{text}"
+        )
+
+        return response.text.strip()
+
     except Exception as e:
-        print("NewsAPI error:", e)
+        return f"Summary unavailable: {str(e)}"
+
+
+# ======================================================================================
+# 2) INDIVIDUAL NEWS FETCHERS
+# ======================================================================================
+def fetch_newsapi(query):
+  
+    if not NEWS_API_KEY:
         return []
 
+    key_terms = " ".join(query.split()[:3])
+    url = f"https://newsapi.org/v2/everything?q={key_terms}&apiKey={NEWS_API_KEY}"
+    print("Calling NewsAPI with:", key_terms)
+    print("NEWSAPI QUERY SENT:", key_terms, url)
+    print("NEWSAPI RAW:", res)
 
-def fetch_news_gnews(query):
-    url = "https://gnews.io/api/v4/search"
-    params = {"q": query, "lang": "en", "token": GNEWS_KEY}
     try:
-        resp = requests.get(url, params=params, timeout=10).json()
-        articles = resp.get("articles", [])
-        return [
-            {"source": "GNews", "title": a["title"], "description": a.get("description"), "url": a.get("url")}
-            for a in articles
-        ]
-    except Exception as e:
-        print("GNews error:", e)
+        res = requests.get(url).json()
+        if "articles" in res:
+            return [
+                {
+                    "source": "NewsAPI",
+                    "title": item.get("title"),
+                    "description": item.get("description"),
+                    "url": item.get("url")
+                }
+                for item in res["articles"]
+            ]
+    except:
+        pass
+    return []
+
+
+def fetch_gnews(query):
+    if not GNEWS_API_KEY:
         return []
 
+    url = f"https://gnews.io/api/v4/search?q={query}&lang=en&token={GNEWS_API_KEY}"
+    print("Calling GNews with:", query)
+    print("GNEWS QUERY SENT:", url)
+    print("GNEWS RAW:", res)
 
-def fetch_news_mediastack(query):
-    url = "http://api.mediastack.com/v1/news"
-    params = {"access_key": MEDIASTACK_KEY, "keywords": query, "languages": "en"}
     try:
-        resp = requests.get(url, params=params, timeout=10).json()
-        articles = resp.get("data", [])
-        return [
-            {"source": "Mediastack", "title": a["title"], "description": a.get("description"), "url": a.get("url")}
-            for a in articles
-        ]
-    except Exception as e:
-        print("Mediastack error:", e)
+        res = requests.get(url).json()
+        if "articles" in res:
+            return [
+                {
+                    "source": "GNews",
+                    "title": item.get("title"),
+                    "description": item.get("description"),
+                    "url": item.get("url")
+                }
+                for item in res["articles"]
+            ]
+    except:
+        pass
+    return []
+
+
+def fetch_mediastack(query):
+    
+    if not MEDIASTACK_API_KEY:
         return []
 
+    url = f"http://api.mediastack.com/v1/news?access_key={MEDIASTACK_API_KEY}&languages=en&keywords={query}"
+    print("Calling Mediastack with:", query)
+    print("MEDIASTACK QUERY SENT:", url)
+    print("MEDIASTACK RAW:", res)
 
-def fetch_news_from_all(query):
-    articles = []
-    for func in [fetch_news_newsapi, fetch_news_gnews, fetch_news_mediastack]:
-        try:
-            data = func(query)
-            if data:
-                articles.extend(data)
-        except Exception as e:
-            print(f"Error fetching from {func.__name__}: {e}")
-
-    # Remove duplicates
-    seen = set()
-    unique_articles = []
-    for art in articles:
-        url = art.get("url")
-        if url and url not in seen:
-            seen.add(url)
-            unique_articles.append(art)
-
-    if not unique_articles:
-        return [
-            {"title": "No articles found", "description": "No reliable sources found.", "url": "#", "source": "System"}
-        ]
-
-    return unique_articles
-
-# ------------------------
-# 🧠 Helper functions
-# ------------------------
-def extract_entities(text):
-    words = [w for w in text.split() if len(w) > 3]
-    return words[:5]
+    try:
+        res = requests.get(url).json()
+        if "data" in res:
+            return [
+                {
+                    "source": "Mediastack",
+                    "title": item.get("title"),
+                    "description": item.get("description"),
+                    "url": item.get("url")
+                }
+                for item in res["data"]
+            ]
+    except:
+        pass
+    return []
 
 
-def classify_truth_level(truth_score):
-    if truth_score >= 80:
-        return "True"
-    elif truth_score >= 60:
-        return "Likely True"
-    elif truth_score >= 40:
-        return "Mixed Evidence"
-    elif truth_score >= 20:
-        return "Unlikely True"
-    else:
-        return "False"
+# ======================================================================================
+# 3) AGGREGATED NEWS FETCHER
+# ======================================================================================
+def fetch_all_news(query):
+    print("DEBUG QUERY RECEIVED:", query)
+
+    results = []
+    results.extend(fetch_newsapi(query))
+    results.extend(fetch_gnews(query))
+    results.extend(fetch_mediastack(query))
+    return results
 
 
-def generate_truth_summary(claim, truth_score, sources, category):
-    if not sources:
-        return f"No reliable sources found for '{claim}'."
-    elif category == "True":
-        return f"'{claim}' is well supported by multiple trusted sources."
-    elif category == "Likely True":
-        return f"'{claim}' has supporting evidence, though not fully confirmed."
-    elif category == "Mixed Evidence":
-        return f"Sources show mixed or unclear evidence for '{claim}'."
-    elif category == "Unlikely True":
-        return f"Few sources support '{claim}'; reliability is questionable."
-    else:
-        return f"'{claim}' appears false based on current reliable news data."
-
-# ------------------------
-# ✅ Verify Claim
-# ------------------------
-def verify_claim(claim):
-    entities = extract_entities(claim)
-    query = " ".join(entities)
-    articles = fetch_news_from_all(query)
+# ======================================================================================
+# 4) CLAIM VERIFICATION LOGIC
+# ======================================================================================
+def verify_claim_logic(claim):
+    articles = fetch_all_news(claim)
 
     if not articles:
         return {
             "claim": claim,
             "truth_score": 0,
-            "message": "No reliable sources found.",
+            "category": "False",
+            "summary": "No matching news found on verified sources.",
             "sources": []
         }
 
-    scores = []
-    claim_embedding = model.encode(claim, convert_to_tensor=True)
+    score = min(100, len(articles) * 10)
 
-    for a in articles:
-        title = a["title"] or ""
-        if not title:
-            continue
-        semantic_sim = util.cos_sim(claim_embedding, model.encode(title, convert_to_tensor=True)).item()
-        lexical_sim = SequenceMatcher(None, claim.lower(), title.lower()).ratio()
-        combined_sim = (semantic_sim * 0.7) + (lexical_sim * 0.3)
-        a["relevance_score"] = round(combined_sim * 100, 2)
-        scores.append(combined_sim)
+    if score >= 80:
+        category = "True"
+    elif score >= 60:
+        category = "Likely True"
+    elif score >= 40:
+        category = "Mixed Evidence"
+    elif score >= 20:
+        category = "Unlikely True"
+    else:
+        category = "False"
 
-    if not scores:
-        return {
-            "claim": claim,
-            "truth_score": 0,
-            "message": "No comparable news found.",
-            "sources": []
-        }
+    combined_text = " ".join([
+        (a.get("title") or "") + ". " + (a.get("description") or "")
+        for a in articles[:5]
+    ])
 
-    avg_score = sum(scores) / len(scores)
-    truth_score = round(avg_score * 100, 2)
-    category = classify_truth_level(truth_score)
-    summary = generate_truth_summary(claim, truth_score, articles[:5], category)
-
-    articles = sorted(articles, key=lambda x: x.get("relevance_score", 0), reverse=True)[:5]
-    explanation = (
-        f"'{claim}' is classified as '{category}'. "
-        f"Average similarity across {len(scores)} sources: {truth_score}%. "
-        f"Top sources show relevance between {articles[0]['relevance_score']}% and {articles[-1]['relevance_score']}%."
-    )
+    summary_text = summarize_with_gemini(combined_text)
 
     return {
         "claim": claim,
-        "truth_score": truth_score,
+        "truth_score": score,
         "category": category,
-        "summary": summary,
-        "explanation": explanation,
-        "sources": articles
+        "summary": summary_text,
+        "sources": articles[:10]
     }
 
-# ------------------------
-# 🌐 Flask Routes
-# ------------------------
-@app.route("/verify/news", methods=["GET"])
-def get_news():
-    query = request.args.get("query")
-    articles = fetch_news_from_all(query)
-    return jsonify({"articles": articles})
 
+# ======================================================================================
+# 5) API ENDPOINT
+# ======================================================================================
+@app.route("/verify", methods=["POST"])
+def verify():
+    # Support both form-data and json
+    claim = ""
+    image = None
 
-@app.route("/verify/claim", methods=["POST"])
-def verify_claim_route():
-    data = request.get_json()
-    claim = data.get("claim", "")
-    if not claim:
-        return jsonify({"error": "No claim provided"}), 400
+    # If JSON request
+    if request.is_json:
+        data = request.get_json()
+        claim = data.get("claim", "")
 
-    result = verify_claim(claim)
+    # If form-data request
+    if "claim" in request.form:
+        claim = request.form.get("claim", "")
+
+    if "image" in request.files:
+        image = request.files["image"]
+        # You can later send this to your image fact-checker
+
+    if not claim and not image:
+        return jsonify({"error": "No claim or image provided"}), 400
+
+    # If only image is provided (optional logic)
+    if image and not claim:
+        claim = "Image uploaded for fact checking."
+
+    result = verify_claim_logic(claim)
     return jsonify(result)
 
 
+# ======================================================================================
+# 6) ENTRYPOINT
+# ======================================================================================
 if __name__ == "__main__":
-    print("✅ Aegis Verify (Free API version) running...")
-    print("Available routes:")
-    print(" - GET  /verify/news")
-    print(" - POST /verify/claim")
-    app.run(debug=True)
+    app.run(host="0.0.0.0", port=7000)
