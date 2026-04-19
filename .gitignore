@@ -47,3 +47,4 @@ out/
 "backend/models/features.pkl" 
 "backend/models/features.pkl" 
 backend/
+.env
