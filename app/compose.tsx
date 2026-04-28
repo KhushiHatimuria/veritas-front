@@ -79,54 +79,54 @@ export default function ComposeScreen() {
 
 
   // Fact Check Button Handler — ONLY TEXT + IMAGE
-const handleFactCheck = async () => {
-  if (!text.trim() && !mediaUri) {
-    Alert.alert(
-      "Missing Input",
-      "Please enter a headline or upload an image to fact-check."
-    );
-    return;
-  }
-
-  try {
-    setLoading(true);
-
-    const formData = new FormData();
-
-    // Add text (optional)
-    formData.append("claim", text || "");
-
-    // Add image (optional)
-    if (mediaUri) {
-      formData.append("image", {
-        uri: mediaUri,
-        name: "photo.jpg",
-        type: "image/jpeg",
-      } as any);
+  const handleFactCheck = async () => {
+    if (!text.trim() && !mediaUri) {
+      Alert.alert(
+        "Missing Input",
+        "Please enter a headline or upload an image to fact-check."
+      );
+      return;
     }
 
-    const result = await apiClient
-      .post("/verify", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      })
-      .then((r) => r.data);
+    try {
+      setLoading(true);
 
-    router.push({
-      pathname: "/onboarding/ResultScreen",
-      params: { type: "factcheck", result: JSON.stringify(result) },
-    });
+      const formData = new FormData();
 
-  } catch (error) {
-    console.log("Fact check error:", error);
-    Alert.alert("❌ Error", "Could not connect to backend. Please try again.");
-  } finally {
-    setLoading(false);
-  }
-};
+      // Add text (optional)
+      formData.append("claim", text || "");
+
+      // Add image (optional)
+      if (mediaUri) {
+        formData.append("image", {
+          uri: mediaUri,
+          name: "photo.jpg",
+          type: "image/jpeg",
+        } as any);
+      }
+
+      const result = await apiClient
+        .post("/verify", formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        })
+        .then((r) => r.data);
+
+      router.push({
+        pathname: "/onboarding/ResultScreen",
+        params: { type: "factcheck", result: JSON.stringify(result) },
+      });
+
+    } catch (error) {
+      console.log("Fact check error:", error);
+      Alert.alert("❌ Error", "Could not connect to backend. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
 
 
-//----------------------------------------------------
+  //----------------------------------------------------
 
 
 
@@ -139,7 +139,7 @@ const handleFactCheck = async () => {
     try {
       const lowerText = text.toLowerCase();
       const wantsSummary =
-        lowerText.includes("summarise") || lowerText.includes("summarize");
+        lowerText.includes("summarize") || lowerText.includes("summarize");
       const wantsMisinformation =
         lowerText.includes("misinfo") ||
         lowerText.includes("fake") ||

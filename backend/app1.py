@@ -16,6 +16,7 @@ import smtplib
 from email.message import EmailMessage
 import os
 from dotenv import load_dotenv
+load_dotenv()  # Load environment variables from .env file
 import joblib
 import pandas as pd
 import re
@@ -35,7 +36,7 @@ from sklearn.preprocessing import MinMaxScaler
 import numpy as np
 
 
-genai.configure(api_key="AIzaSyA-NpCrHLxZ0kdhDCfXb9PEUsJsG-3TCJU")
+genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 
 # ---------------------------------------------------------
 # ✅ Ensure Database Exists
@@ -152,8 +153,8 @@ def prepare_data_for_prediction(features, window_size=5):
 def send_email(recipient_email, subject, body):
     SMTP_SERVER = 'smtp.gmail.com'
     SMTP_PORT = 587
-    EMAIL_ADDRESS ="nishasinha720@gmail.com"
-    EMAIL_PASSWORD = "vmtz obdx ctnp wmir"
+    EMAIL_ADDRESS = os.getenv("EMAIL_ADDRESS")
+    EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
 
     if not EMAIL_ADDRESS or not EMAIL_PASSWORD:
         print("ERROR: Email credentials are not set in the backend .env file.")
@@ -199,7 +200,7 @@ def register_user():
     password = data.get('password')
     captcha_token = data.get('captcha_token')
 
-    secret_key = "6LftQvIrAAAAAHadujBXAYQw44pYG3OMPUbbjxYo" 
+    secret_key = os.getenv("RECAPTCHA_SECRET_KEY")
     #make sure this matches your reCAPTCHA site pair
 
     # --- Validate captcha ---
@@ -354,6 +355,7 @@ def health():
 
 # ---- Summarization ----
 @app.route("/api/v1/summarize", methods=["POST"])
+@app.route("/api/v1/summarise", methods=["POST"])
 def summarize():
     try:
         text = request.json.get("text", "")
@@ -390,62 +392,73 @@ def misinfo():
         if not text:
             return jsonify({"error": "No text provided"}), 400
 
-        prompt = f"""
-        Detect misinformation in the following text.
-        Classify as:
-        - Likely True
-        - Possibly Misinformation
-        - Needs Verification
+        prompt = f"""Analyze the following text for potential misinformation.
 
-        Text: {text}
-        """
-        response = pro_model.generate_content(prompt)
+Text: {text}
 
-        return jsonify({"misinfo_analysis": response.text})
+Respond with ONLY a JSON object, no markdown, no explanation outside the JSON.
+Use exactly these keys: verdict, explanation, confidence
+
+Example:
+{{"verdict": "Likely True", "explanation": "The claim is supported by...", "confidence": 0.85}}
+
+Verdicts must be one of: "Likely True", "Likely False", "Misleading", "Unverifiable"
+"""
+
+        response = flash_model.generate_content(prompt)
+        raw = response.text.strip()
+        
+        # Debug — remove this once working
+        print(f"RAW GEMINI RESPONSE: {repr(raw)}")
+
+        # Strip markdown fences if present
+        if raw.startswith("```"):
+            raw = raw.split("```")[1]
+            if raw.startswith("json"):
+                raw = raw[4:]
+            raw = raw.strip()
+
+        import json as json_mod
+        parsed = json_mod.loads(raw)
+        return jsonify(parsed)
+
+    except json.JSONDecodeError as e:
+        print(f"JSON parse error: {e}, raw was: {repr(raw)}")
+        return jsonify({"error": "Failed to parse AI response", "raw": raw}), 500
     except Exception as e:
+        print(f"Misinfo error: {e}")
         return jsonify({"error": str(e)}), 500
-
 # ---- Image Detection ----
-from PIL import Image
-import numpy as np
-import requests
+from PIL import Image as PILImage
 import traceback
 
 @app.route("/api/v1/detect/image", methods=["POST"])
 def detect_image():
     try:
-        if "image" not in request.files and "file" not in request.files:
+        file_key = "image" if "image" in request.files else "file" if "file" in request.files else None
+        if not file_key:
             return jsonify({"error": "No image file provided"}), 400
 
-        image_file = request.files.get("image") or request.files.get("file")
-
-        img = Image.open(image_file.stream).convert("RGB")
+        image_file = request.files[file_key]
+        img = PILImage.open(image_file.stream).convert("RGB")
         img = img.resize((256, 256))
-        image_array = np.array(img, dtype=np.float32) / 255.0  # Normalize to 0-1 to match notebook's rescale=1./255.
+        image_array = np.array(img, dtype=np.float32) / 255.0
 
-        image_service_url = "http://127.0.0.1:5002/predict/image"
-        response = requests.post(image_service_url, json={"input": image_array.tolist()})
+        response = requests.post(
+            "http://127.0.0.1:5002/predict/image",
+            json={"input": image_array.tolist()}
+        )
         response.raise_for_status()
-
         result = response.json()
-        print("IMAGE SERVICE RESULT:", result)
-
-        # Expecting:
-        # { "prediction": "Real", "confidence": 0.92 }
-
-        label = result.get("prediction", "Unknown")
-        confidence = result.get("confidence", None)
 
         return jsonify({
-            "prediction": label,
-            "confidence": confidence
+            "prediction": result.get("prediction", "Unknown"),
+            "confidence": result.get("confidence", None)
         })
 
     except Exception as e:
-        print(f"❌ Error in /api/v1/detect/image: {e}")
         traceback.print_exc()
         return jsonify({"error": "Internal server error during image detection."}), 500
-
 #----------------------------------------------------------------------------------------------------------
 
 

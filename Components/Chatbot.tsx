@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import {
     View,
     Text,
@@ -10,375 +10,232 @@ import {
     StyleSheet,
     Animated,
     Easing,
-    ActivityIndicator,
+    ScrollView,
 } from "react-native";
 
-// --- NEW ASYNC STORAGE IMPORT (Required for Persistence) ---
-import ReactNativeAsyncStorage from '@react-native-async-storage/async-storage';
+// --- FAQ DATA ---
+// Add or edit entries here. Each entry has:
+//   tags  -- keywords to match against the user's message (lowercase)
+//   q     -- the canonical question (just for readability)
+//   a     -- the answer Verta will reply with
+const FAQ: { tags: string[]; q: string; a: string }[] = [
+    {
+        tags: ["verify", "check", "fact", "claim", "news", "misinformation", "fake"],
+        q: "How do I verify a claim?",
+        a: "Tap the search bar on the Home screen or the compose icon next to it. On the Compose screen, type your claim and optionally attach a photo, audio, or link -- then hit Verify.",
+    },
+    {
+        tags: ["account", "profile", "login", "sign in", "signin", "register", "signup"],
+        q: "How do I access my account?",
+        a: "Tap the profile icon (person bust) in the top-right corner of the Home screen. The menu includes History, Saved, Archives, Rewards, About, and Logout.",
+    },
+    {
+        tags: ["reward", "point", "score", "earn", "badge", "gamif"],
+        q: "How do rewards work?",
+        a: "You earn points every time you verify content or engage with the platform. Open your profile menu and tap Rewards to see your points, badges, and leaderboard rank.",
+    },
+    {
+        tags: ["history", "past", "previous", "old", "saved", "archive"],
+        q: "Where is my verification history?",
+        a: "Tap the profile icon then History to see all past verifications. Tap Saved for bookmarked results, or Archives for older records.",
+    },
+    {
+        tags: ["deepfake", "image", "audio", "video", "fake media", "detect"],
+        q: "Can Veritas detect deepfakes?",
+        a: "Yes! On the Compose screen, attach an image, audio clip, or video. Veritas will run AI-powered deepfake detection and show you a confidence score.",
+    },
+    {
+        tags: ["chatbot", "verta", "ai", "bot", "help", "support"],
+        q: "What can Verta help with?",
+        a: "Verta is your in-app AI guide. Ask me about app features, how to navigate screens, or general fact-checking questions. For live news verdicts, use the Compose screen.",
+    },
+    {
+        tags: ["language", "translation", "locale", "i18n", "multilingual"],
+        q: "What languages does Veritas support?",
+        a: "Veritas supports 6 languages. Go to Settings from your profile menu and choose your preferred language.",
+    },
+    {
+        tags: ["password", "reset", "forgot", "otp", "email"],
+        q: "I forgot my password",
+        a: "On the login screen, tap Forgot password. Enter your email and you will receive a one-time password (OTP) to reset your credentials.",
+    },
+    {
+        tags: ["spam", "call", "truecaller", "unknown", "phone"],
+        q: "What is the spam call feature?",
+        a: "Veritas includes a Truecaller-like spam call screen that alerts you to potentially fraudulent or spam callers in real time.",
+    },
+    {
+        tags: ["offline", "internet", "network", "connection"],
+        q: "Does Veritas work offline?",
+        a: "Most features require an internet connection to fetch news and run AI analysis. Your saved and archived items are accessible offline.",
+    },
+    {
+        tags: ["news", "feed", "home", "latest", "article"],
+        q: "How does the news feed work?",
+        a: "The Home screen shows a curated feed of recent news and fact-check results. Pull down to refresh for the latest articles from verified sources.",
+    },
+    {
+        tags: ["delete", "remove", "close", "deactivate"],
+        q: "How do I delete my account?",
+        a: "To delete your account, go to your profile menu then About then Contact Support, and request account deletion. Our team will process it within 48 hours.",
+    },
+];
 
-// --- FIREBASE IMPORTS ---
-// Importing everything from auth as FirebaseAuth to resolve deep TypeScript issues
-import * as FirebaseAuth from 'firebase/auth'; 
-import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, Timestamp, Firestore } from 'firebase/firestore';
+const FALLBACK_ANSWER =
+    "Hmm, I don't have a specific answer for that yet. Try asking about verifying claims, your account, rewards, deepfake detection, or forgotten password.";
 
+const GREETING =
+    "Hi! I'm Verta, your Veritas support guide. Ask me anything about the app, or tap a topic below.";
 
-// --- CONFIGURATION ---
-// Explicitly declare types for environment-injected variables (for Canvas compatibility)
-declare const __app_id: string | undefined;
-declare const __initial_auth_token: string | undefined;
+const INITIAL_SUGGESTIONS = [
+    "How to verify?",
+    "My rewards",
+    "Forgot password",
+    "Deepfake detection",
+    "Languages",
+];
 
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-const MODEL_NAME = 'gemini-2.5-flash-preview-09-2025';
-const API_KEY = ""; 
-
-// This uses environment variables exposed via EXPO_PUBLIC_* in your local .env file
-const firebaseConfig = {
-    apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
-    authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
-    projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
-    storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
-    messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-    appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
-};
-
-// System Instruction for the AI Persona (App Guide Knowledge)
-const SYSTEM_PROMPT = "Act as Verta Chatbot, a friendly, AI-powered support agent and app guide for the Veritas fact-checking and news platform. Your primary goals are to assist users with questions about the Veritas app features and provide grounded, concise, and helpful general information when requested. Keep your responses encouraging and professional. Always use the information from your search results to ground your answers. \n\nHere is key information about the Veritas app features and navigation:\n\n1.  **Compose/Verification Screen:** Users access this screen to submit content for verification. They can find the entry point on the 'home' screen by clicking the 'What do you want to verify today?' search bar, or the small compose icon next to it. Once on the 'Compose' screen, they can type their query, and add photos, audio, or links, before hitting the 'Verify' button.\n2.  **My Account/Profile Options:** The user's account options (which include History, Saved, Archives, Rewards, About, and Logout) are accessed via the main navigation menu. They need to click on the **profile icon (a person's bust)** located in the top right corner of the 'home' screen.";
-
-
-// --- TYPE DEFINITIONS ---
-type ChatMessage = {
+// --- TYPES ---
+type Message = {
     id: string;
-    role: 'user' | 'bot' | 'system';
+    role: "user" | "bot";
     text: string;
-    timestamp: Date | Timestamp;
-    sources?: { uri: string; title: string }[];
 };
 
+// --- FAQ MATCHING ---
+function findAnswer(input: string): string {
+    const lower = input.toLowerCase();
+    let best: (typeof FAQ)[0] | null = null;
+    let bestScore = 0;
 
-// --- UTILITY FUNCTIONS (Gemini API Call) ---
-
-async function fetchGeminiResponse(userText: string): Promise<{text: string, sources: { uri: string; title: string }[]}> {
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${API_KEY}`;
-    const maxRetries = 5;
-    const chatHistory = [{ role: "user", parts: [{ text: userText }] }];
-
-    const payload = {
-        contents: chatHistory,
-        tools: [{ "google_search": {} }],
-        systemInstruction: {
-            parts: [{ text: SYSTEM_PROMPT }]
-        },
-    };
-
-    for (let attempt = 0; attempt < maxRetries; attempt++) {
-        try {
-            const response = await fetch(apiUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-
-            if (response.status === 429 && attempt < maxRetries - 1) {
-                const delay = Math.pow(2, attempt) * 1000 + Math.random() * 500;
-                await new Promise(resolve => setTimeout(resolve, delay));
-                continue;
-            }
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
-            const result = await response.json();
-            const candidate = result.candidates?.[0];
-
-            if (candidate && candidate.content?.parts?.[0]?.text) {
-                const text = candidate.content.parts[0].text;
-                
-                let sources: { uri: string; title: string }[] = [];
-                const groundingMetadata = candidate.groundingMetadata;
-                if (groundingMetadata && groundingMetadata.groundingAttributions) {
-                    sources = groundingMetadata.groundingAttributions
-                        .map((attribution: any) => ({
-                            uri: attribution.web?.uri as string,
-                            title: attribution.web?.title as string,
-                        }))
-                        .filter((source: any) => source.uri && source.title);
-                }
-
-                return { text, sources };
-            } else {
-                return { text: "I apologize, Verta is currently unable to generate a response.", sources: [] };
-            }
-
-        } catch (error) {
-            console.error(`Attempt ${attempt + 1} failed:`, error);
-            if (attempt === maxRetries - 1) {
-                throw new Error("Failed to connect to the AI service after multiple retries.");
-            }
-            const delay = Math.pow(2, attempt) * 1000 + Math.random() * 500;
-            await new Promise(resolve => setTimeout(resolve, delay));
+    for (const entry of FAQ) {
+        let score = 0;
+        for (const tag of entry.tags) {
+            if (lower.includes(tag)) score++;
+        }
+        if (score > bestScore) {
+            bestScore = score;
+            best = entry;
         }
     }
-    return { text: "Verta could not connect to the service. Please try again.", sources: [] };
+
+    return bestScore > 0 ? best!.a : FALLBACK_ANSWER;
 }
 
-
-// --- MAIN REACT NATIVE COMPONENT ---
-
+// --- COMPONENT ---
 export default function Chatbot() {
-    // Original UI State
     const [open, setOpen] = useState(false);
     const [input, setInput] = useState("");
-    const listRef = useRef<FlatList<ChatMessage>>(null);
+    const [messages, setMessages] = useState<Message[]>([
+        { id: "0", role: "bot", text: GREETING },
+    ]);
+    const [isTyping, setIsTyping] = useState(false);
+    const [suggestions, setSuggestions] = useState(INITIAL_SUGGESTIONS);
 
-    // Chat / AI State
-    const [messages, setMessages] = useState<ChatMessage[]>([]);
-    const [loading, setLoading] = useState(false);
-
-    // Firebase State
-    const [db, setDb] = useState<Firestore | null>(null);
-    const [userId, setUserId] = useState<string | null>(null);
-    const [isAuthReady, setIsAuthReady] = useState(false);
-
-    // 🎬 Animation setup for chat box (from original code)
+    const listRef = useRef<FlatList<Message>>(null);
     const fadeAnim = useRef(new Animated.Value(0)).current;
-    const slideAnim = useRef(new Animated.Value(50)).current;
+    const slideAnim = useRef(new Animated.Value(30)).current;
+    const dot1 = useRef(new Animated.Value(0)).current;
+    const dot2 = useRef(new Animated.Value(0)).current;
+    const dot3 = useRef(new Animated.Value(0)).current;
 
-    // --- FIREBASE INITIALIZATION & AUTH (Updated for AsyncStorage) ---
-    useEffect(() => {
-        // Explicitly check for config values
-        const configKeys = Object.keys(firebaseConfig).filter(k => (firebaseConfig as any)[k]);
-        const isConfigValid = configKeys.length === 6; // All 6 required keys are present
-
-        if (!isConfigValid) {
-            console.error("FIREBASE CONFIG ERROR: One or more EXPO_PUBLIC_FIREBASE_* variables are missing or empty.");
-            // Log the missing keys for easy debugging
-            Object.entries(firebaseConfig).forEach(([key, value]) => {
-                if (!value) console.error(`MISSING CONFIG KEY: ${key}`);
-            });
-            
-            setIsAuthReady(true); // Allow user to type, skipping persistence
-            // Use simple Date object
-            setMessages([
-                { id: "0", role: "bot", text: "⚠️ Auth Failed. Please check your .env file for missing Firebase config values.", timestamp: new Date() },
-            ]);
-            return;
-        }
-
-        try {
-            const app = initializeApp(firebaseConfig);
-            let currentAuth: FirebaseAuth.Auth;
-
-            try {
-                // Initialize Auth with AsyncStorage for persistence
-                currentAuth = FirebaseAuth.initializeAuth(app, {
-                    // FIX: Access persistence via the imported alias (FirebaseAuth)
-                    // This is the correct functional fix and removes the invalid static import attempt.
-                    persistence: FirebaseAuth.getReactNativePersistence(ReactNativeAsyncStorage) as any,
-                });
-            } catch (e) {
-                console.error("FATAL: initializeAuth failed (AsyncStorage issue?). Fallback to standard Auth.", e);
-                // If persistence setup fails, fall back to simple memory persistence
-                currentAuth = FirebaseAuth.getAuth(app);
-            }
-            
-            const currentDb = getFirestore(app);
-            setDb(currentDb);
-            
-            const unsubscribe = FirebaseAuth.onAuthStateChanged(currentAuth, async (user) => {
-                let currentUserId: string | null = null;
-                if (user) {
-                    currentUserId = user.uid;
-                    console.log("Firebase Auth Success. User ID:", currentUserId);
-                } else {
-                    // Sign in anonymously if no user is found
-                    if (initialAuthToken) {
-                         await FirebaseAuth.signInWithCustomToken(currentAuth, initialAuthToken);
-                    } else {
-                        await FirebaseAuth.signInAnonymously(currentAuth);
-                    }
-                    currentUserId = currentAuth.currentUser?.uid || 'default-anon-user';
-                    console.log("Signed in anonymously. User ID:", currentUserId);
-                }
-                setUserId(currentUserId);
-                setIsAuthReady(true); // Authentication attempt finished, enable input
-            });
-
-            return () => unsubscribe();
-        } catch (e) {
-            console.error("Firebase App Initialization Failed:", e);
-            setIsAuthReady(true); // Allow typing, as Firebase failed early
-        }
-    }, []);
-
-    // --- FIREBASE DATA SUBSCRIPTION (LOAD HISTORY) ---
-    useEffect(() => {
-        if (!isAuthReady || !db || !userId) return;
-
-        // Path: /artifacts/{appId}/users/{userId}/chat_messages
-        const chatPath = `/artifacts/${appId}/users/${userId}/chat_messages`;
-        const q = query(collection(db, chatPath), orderBy('timestamp', 'asc'));
-
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const history: ChatMessage[] = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data(),
-                timestamp: doc.data().timestamp instanceof Timestamp ? doc.data().timestamp.toDate() : doc.data().timestamp || new Date(),
-            })) as ChatMessage[];
-
-            if (history.length === 0) {
-                history.push({ 
-                    id: "0", 
-                    role: "bot", 
-                    text: "👋 Hi! I'm Verta, the AI support for Veritas. Your chat history is saved! How can I assist you today?", 
-                    timestamp: new Date()
-                });
-            }
-            setMessages(history);
-        }, (error) => {
-            console.error("Error listening to chat messages:", error);
-            if (messages.length === 0) {
-                setMessages([
-                    { id: "0", role: "bot", text: "👋 Hi! I'm Verta. I couldn't load your history, but I'm ready to chat! How can I assist you today?", timestamp: new Date() },
-                ]);
-            }
-        });
-
-        return () => unsubscribe();
-    }, [isAuthReady, db, userId]);
-
-
-    // --- UI/ANIMATION EFFECTS ---
+    // Open/close animation
     useEffect(() => {
         if (open) {
             Animated.parallel([
                 Animated.timing(fadeAnim, {
                     toValue: 1,
-                    duration: 400,
+                    duration: 300,
                     easing: Easing.out(Easing.ease),
                     useNativeDriver: true,
                 }),
                 Animated.timing(slideAnim, {
                     toValue: 0,
-                    duration: 400,
+                    duration: 300,
                     easing: Easing.out(Easing.ease),
                     useNativeDriver: true,
                 }),
             ]).start();
         } else {
             fadeAnim.setValue(0);
-            slideAnim.setValue(50);
+            slideAnim.setValue(30);
         }
     }, [open]);
 
-    // Scroll to end (from original code)
+    // Typing dots animation
     useEffect(() => {
-        listRef.current?.scrollToEnd({ animated: true });
-    }, [messages, open]);
-
-
-    // --- MESSAGE SENDING LOGIC ---
-    const send = useCallback(async () => {
-        const text = input.trim();
-        if (!text || loading || !isAuthReady || !userId) return;
-
-        setLoading(true);
-        setInput("");
-
-        // Manually simulate local user message addition for instant feedback
-        const tempUserMsg: ChatMessage = { id: Date.now().toString(), role: 'user', text: text, timestamp: new Date() };
-        
-        // Temporarily add user message and trigger scroll
-        setMessages(prev => [...prev, tempUserMsg]);
-        listRef.current?.scrollToEnd({ animated: true });
-        
-        // 1. Prepare and save user message (Firestore handles actual state update later)
-        const userMsg = { role: 'user', text: text, timestamp: serverTimestamp() };
-        try {
-            if (db) {
-                await addDoc(collection(db, `/artifacts/${appId}/users/${userId}/chat_messages`), userMsg);
-            }
-        } catch (error) {
-            console.error("Error saving user message to Firestore:", error);
-        }
-
-        // 2. Get AI response
-        let aiResponse;
-        try {
-            aiResponse = await fetchGeminiResponse(text);
-        } catch (error) {
-            console.error("Gemini API call failed:", error);
-            aiResponse = { text: "I'm sorry, I'm having trouble connecting to the AI service right now.", sources: [] };
-        }
-
-        // 3. Prepare and save bot message
-        const botMsg = {
-            role: 'bot',
-            text: aiResponse.text,
-            timestamp: serverTimestamp(),
-            sources: aiResponse.sources || [],
+        if (!isTyping) return;
+        const animDot = (dot: Animated.Value, delay: number) =>
+            Animated.loop(
+                Animated.sequence([
+                    Animated.delay(delay),
+                    Animated.timing(dot, { toValue: -5, duration: 300, useNativeDriver: true }),
+                    Animated.timing(dot, { toValue: 0, duration: 300, useNativeDriver: true }),
+                    Animated.delay(600),
+                ])
+            );
+        const a1 = animDot(dot1, 0);
+        const a2 = animDot(dot2, 200);
+        const a3 = animDot(dot3, 400);
+        a1.start();
+        a2.start();
+        a3.start();
+        return () => {
+            a1.stop();
+            a2.stop();
+            a3.stop();
+            dot1.setValue(0);
+            dot2.setValue(0);
+            dot3.setValue(0);
         };
-        
-        try {
-            if (db) {
-                await addDoc(collection(db, `/artifacts/${appId}/users/${userId}/chat_messages`), botMsg);
-            } else {
-                // If persistence is disabled, manually add bot message
-                // FIX FOR REDLINE: Define the object structure explicitly to satisfy TS.
-                const tempBotMsg: ChatMessage = {
-                    id: Date.now().toString(),
-                    role: 'bot',
-                    text: botMsg.text,
-                    timestamp: new Date(),
-                    sources: botMsg.sources,
-                };
-                setMessages(prev => [...prev, tempBotMsg]);
-                listRef.current?.scrollToEnd({ animated: true });
-            }
-        } catch (error) {
-            console.error("Error saving bot message to Firestore:", error);
-        }
-        
-        setLoading(false);
+    }, [isTyping]);
 
-    }, [input, loading, isAuthReady, db, userId, appId]);
-    
-    // --- Message Renderer Component ---
-    const renderMessage = ({ item }: { item: ChatMessage }) => {
-        const isUser = item.role === 'user';
-        
+    // Scroll to bottom
+    useEffect(() => {
+        setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
+    }, [messages, isTyping]);
+
+    const handleSend = useCallback(
+        (text?: string) => {
+            const trimmed = (text ?? input).trim();
+            if (!trimmed || isTyping) return;
+
+            setInput("");
+            setSuggestions([]);
+
+            const userMsg: Message = {
+                id: Date.now().toString(),
+                role: "user",
+                text: trimmed,
+            };
+            setMessages((prev) => [...prev, userMsg]);
+            setIsTyping(true);
+
+            setTimeout(() => {
+                const answer = findAnswer(trimmed);
+                const botMsg: Message = {
+                    id: (Date.now() + 1).toString(),
+                    role: "bot",
+                    text: answer,
+                };
+                setIsTyping(false);
+                setMessages((prev) => [...prev, botMsg]);
+                setSuggestions(["Another question", "Verify a claim", "Rewards", "Deepfake"]);
+            }, 800);
+        },
+        [input, isTyping]
+    );
+
+    const renderMessage = ({ item }: { item: Message }) => {
+        const isUser = item.role === "user";
         return (
-            <View
-                style={[
-                    styles.msg,
-                    isUser ? styles.user : styles.bot,
-                ]}
-            >
-                {/* Message text, replacing markdown newlines with RN newlines */}
-                <Text style={isUser ? styles.userText : styles.botText}>
-                    {item.text.replace(/\\n/g, '\n')}
-                </Text>
-                
-                {/* Citations/Sources for Bot (Rendered using Text, as RN doesn't support <a> tags easily) */}
-                {item.sources && item.sources.length > 0 && (
-                    <View style={styles.citationContainer}>
-                        <Text style={styles.citationHeader}>Sources:</Text>
-                        {item.sources.map((source, index) => (
-                            // NOTE: Cannot display clickable links in standard RN/Expo text; showing title only.
-                            <Text key={index} style={styles.citationText}>
-                                {index + 1}. {source.title}
-                            </Text>
-                        ))}
-                    </View>
-                )}
+            <View style={[styles.msg, isUser ? styles.userMsg : styles.botMsg]}>
+                <Text style={isUser ? styles.userText : styles.botText}>{item.text}</Text>
             </View>
         );
     };
 
     return (
-        // Using React Native components (View, FlatList, etc.)
         <>
             {open && (
                 <KeyboardAvoidingView
@@ -388,212 +245,250 @@ export default function Chatbot() {
                     <Animated.View
                         style={[
                             styles.box,
-                            {
-                                opacity: fadeAnim,
-                                transform: [{ translateY: slideAnim }],
-                            },
+                            { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
                         ]}
                     >
-                        <Text style={styles.header}>🤖 Verta Chatbot</Text>
+                        {/* Header */}
+                        <View style={styles.header}>
+                            <Text style={styles.headerTitle}>Verta Support</Text>
+                            <Text style={styles.headerSub}>Powered by Veritas FAQ</Text>
+                        </View>
 
+                        {/* Messages */}
                         <FlatList
                             ref={listRef}
                             data={messages}
                             keyExtractor={(m) => m.id}
                             contentContainerStyle={styles.list}
                             renderItem={renderMessage}
+                            ListFooterComponent={
+                                isTyping ? (
+                                    <View style={styles.typingBubble}>
+                                        {[dot1, dot2, dot3].map((dot, i) => (
+                                            <Animated.View
+                                                key={i}
+                                                style={[
+                                                    styles.dot,
+                                                    { transform: [{ translateY: dot }] },
+                                                ]}
+                                            />
+                                        ))}
+                                    </View>
+                                ) : null
+                            }
                         />
 
-                        {/* Loading Indicator for AI response */}
-                        {loading && (
-                            <View style={styles.loadingIndicatorContainer}>
-                                <ActivityIndicator size="small" color="#a64dff" />
-                                <Text style={styles.loadingText}>Verta is thinking...</Text>
-                            </View>
+                        {/* Suggestion chips */}
+                        {suggestions.length > 0 && (
+                            <ScrollView
+                                horizontal
+                                showsHorizontalScrollIndicator={false}
+                                contentContainerStyle={styles.suggestionsRow}
+                            >
+                                {suggestions.map((s) => (
+                                    <Pressable
+                                        key={s}
+                                        style={styles.chip}
+                                        onPress={() => handleSend(s)}
+                                    >
+                                        <Text style={styles.chipText}>{s}</Text>
+                                    </Pressable>
+                                ))}
+                            </ScrollView>
                         )}
 
+                        {/* Input row */}
                         <View style={styles.inputRow}>
                             <TextInput
-                                style={styles.input}
+                                style={styles.textInput}
                                 value={input}
                                 onChangeText={setInput}
-                                placeholder={loading ? "Waiting for response..." : "Type a message…"}
-                                placeholderTextColor="#777"
+                                placeholder="Ask something..."
+                                placeholderTextColor="#555"
                                 returnKeyType="send"
-                                onSubmitEditing={send}
-                                editable={!loading && isAuthReady}
+                                onSubmitEditing={() => handleSend()}
+                                editable={!isTyping}
                             />
                             <Pressable
-                                style={({ pressed }) => [
-                                    styles.send,
-                                    (loading || !isAuthReady) && styles.sendDisabled,
-                                    pressed && !loading && isAuthReady && { transform: [{ scale: 0.95 }] },
-                                ]}
-                                onPress={send}
-                                disabled={loading || !isAuthReady}
+                                style={[styles.sendBtn, isTyping && styles.sendBtnDisabled]}
+                                onPress={() => handleSend()}
+                                disabled={isTyping}
                             >
-                                <Text style={styles.sendText}>{loading ? '...' : 'Send'}</Text>
+                                <Text style={styles.sendBtnText}>Send</Text>
                             </Pressable>
                         </View>
                     </Animated.View>
                 </KeyboardAvoidingView>
             )}
 
-            <Pressable
-                onPress={() => setOpen(!open)}
-                style={({ pressed }) => [
-                    styles.fab,
-                    pressed && { transform: [{ scale: 0.9 }] },
-                ]}
-            >
-                <Text style={styles.fabIcon}>{open ? '✖️' : '💬'}</Text>
+            {/* FAB */}
+            <Pressable style={styles.fab} onPress={() => setOpen((v) => !v)}>
+                <Text style={styles.fabIcon}>{open ? "Close" : "Chat"}</Text>
             </Pressable>
         </>
     );
 }
 
+// --- STYLES ---
 const styles = StyleSheet.create({
     wrapper: {
         position: "absolute",
         bottom: 90,
         right: 20,
         zIndex: 999,
-        alignSelf: 'flex-end',
     },
     box: {
         width: 320,
-        height: 420,
+        height: 440,
         backgroundColor: "#0d0d0d",
         borderRadius: 20,
-        padding: 12,
+        borderWidth: 0.5,
+        borderColor: "#3a0066",
+        overflow: "hidden",
         shadowColor: "#a64dff",
-        shadowOpacity: 0.4,
+        shadowOpacity: 0.35,
         shadowRadius: 16,
         elevation: 10,
     },
     header: {
-        fontWeight: "700",
-        textAlign: "center",
-        marginBottom: 8,
+        paddingVertical: 10,
+        paddingHorizontal: 16,
+        borderBottomWidth: 0.5,
+        borderBottomColor: "#3a0066",
+        alignItems: "center",
+    },
+    headerTitle: {
         color: "#a64dff",
-        fontSize: 16,
-        letterSpacing: 1,
+        fontWeight: "500",
+        fontSize: 15,
+        letterSpacing: 0.5,
+    },
+    headerSub: {
+        color: "#555",
+        fontSize: 11,
+        marginTop: 1,
     },
     list: {
+        padding: 12,
+        paddingBottom: 4,
         flexGrow: 1,
-        paddingVertical: 8,
     },
     msg: {
-        maxWidth: "80%",
+        maxWidth: "82%",
         padding: 10,
         borderRadius: 12,
         marginVertical: 4,
     },
-    user: {
+    userMsg: {
         alignSelf: "flex-end",
         backgroundColor: "#6b00b6",
-        shadowColor: "#a64dff",
-        shadowOpacity: 0.5,
-        shadowRadius: 10,
     },
-    bot: {
+    botMsg: {
         alignSelf: "flex-start",
         backgroundColor: "#1a1a1a",
-        borderWidth: 1,
-        borderColor: '#3a0066',
+        borderWidth: 0.5,
+        borderColor: "#3a0066",
     },
     userText: {
         color: "#fff",
+        fontSize: 13,
+        lineHeight: 19,
     },
     botText: {
         color: "#cfcfcf",
+        fontSize: 13,
+        lineHeight: 19,
     },
-    citationContainer: {
-        marginTop: 8,
-        paddingTop: 4,
-        borderTopWidth: 1,
-        borderTopColor: '#3a0066',
+    typingBubble: {
+        flexDirection: "row",
+        alignSelf: "flex-start",
+        backgroundColor: "#1a1a1a",
+        borderWidth: 0.5,
+        borderColor: "#3a0066",
+        borderRadius: 12,
+        padding: 10,
+        paddingHorizontal: 14,
+        marginVertical: 4,
+        gap: 4,
+        alignItems: "center",
     },
-    citationHeader: {
-        fontSize: 10,
-        color: '#a64dff',
-        fontWeight: 'bold',
-        marginBottom: 2,
+    dot: {
+        width: 6,
+        height: 6,
+        borderRadius: 3,
+        backgroundColor: "#a64dff",
     },
-    citationText: {
-        fontSize: 10,
-        color: '#888',
-        fontStyle: 'italic',
+    suggestionsRow: {
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        gap: 6,
+    },
+    chip: {
+        borderWidth: 0.5,
+        borderColor: "#a64dff",
+        borderRadius: 20,
+        paddingHorizontal: 10,
+        paddingVertical: 5,
+        marginRight: 6,
+    },
+    chipText: {
+        color: "#a64dff",
+        fontSize: 11,
     },
     inputRow: {
         flexDirection: "row",
         alignItems: "center",
-        columnGap: 8,
-        marginTop: 10,
+        gap: 8,
+        padding: 10,
+        borderTopWidth: 0.5,
+        borderTopColor: "#3a0066",
     },
-    input: {
+    textInput: {
         flex: 1,
-        borderWidth: 1,
+        backgroundColor: "#1a1a1a",
+        borderWidth: 0.5,
         borderColor: "#3a0066",
         borderRadius: 10,
-        paddingHorizontal: 10,
+        paddingHorizontal: 12,
         paddingVertical: 8,
         color: "#fff",
-        backgroundColor: "#1a1a1a",
+        fontSize: 13,
     },
-    send: {
+    sendBtn: {
         backgroundColor: "#a64dff",
         paddingHorizontal: 14,
-        height: 40,
+        height: 38,
         justifyContent: "center",
         borderRadius: 10,
-        shadowColor: "#a64dff",
-        shadowOpacity: 0.8,
-        shadowRadius: 10,
     },
-    sendDisabled: {
+    sendBtnDisabled: {
         backgroundColor: "#6b00b6",
         opacity: 0.5,
-        shadowOpacity: 0.1,
     },
-    sendText: {
+    sendBtnText: {
         color: "#fff",
-        fontWeight: "600",
+        fontWeight: "500",
+        fontSize: 13,
     },
     fab: {
         position: "absolute",
         bottom: 24,
         right: 20,
         backgroundColor: "#a64dff",
-        width: 56,
-        height: 56,
-        borderRadius: 28,
+        width: 54,
+        height: 54,
+        borderRadius: 27,
         alignItems: "center",
         justifyContent: "center",
         shadowColor: "#a64dff",
-        shadowOpacity: 0.8,
+        shadowOpacity: 0.7,
         shadowRadius: 12,
         elevation: 8,
         zIndex: 1000,
     },
     fabIcon: {
-        fontSize: 22,
+        fontSize: 13,
+        fontWeight: "500",
         color: "#fff",
     },
-    loadingIndicatorContainer: {
-        flexDirection: 'row',
-        alignSelf: 'flex-start',
-        alignItems: 'center',
-        backgroundColor: '#1a1a1a',
-        borderWidth: 1,
-        borderColor: '#3a0066',
-        borderRadius: 12,
-        maxWidth: '80%',
-        padding: 10,
-        marginVertical: 4,
-    },
-    loadingText: {
-        color: "#cfcfcf",
-        marginLeft: 8,
-    }
 });
